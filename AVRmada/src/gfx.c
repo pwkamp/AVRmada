@@ -7,7 +7,7 @@
  * - Drawing primitives (pixels, lines, rectangles, circles, etc.)
  * - Text rendering support with customizable fonts
  *
- * v1.0 - Initial Commit
+ * v1.1 - Refactor Directories
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 

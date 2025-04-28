@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------
  * main.c - Two-player Battleship over UART
  *
- * v1.0 - Initial Commit
+ * v1.1 - Refactor Directories
  * Copyright (c) 2025 Peter Kamp
  * ------------------------------------------------------------------------- */
 

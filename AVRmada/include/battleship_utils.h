@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------
  * battleship_utils.h - Header file for battleship_utils.c
  *
- * v1.0 - Initial Commit
+ * v1.1 - Refactor Directories
  * Copyright (c) 2025 Peter Kamp
  * ------------------------------------------------------------------------- */
 

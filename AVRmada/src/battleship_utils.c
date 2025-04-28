@@ -2,7 +2,7 @@
  * battleship_utils.c
  * Helper and hardware abstraction layer routines for Battleship
  *
- * v1.0 - Initial Commit
+ * v1.1 - Refactor Directories
  * Copyright (c) 2025 Peter Kamp
  * ------------------------------------------------------------------------- */
 

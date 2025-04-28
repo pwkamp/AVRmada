@@ -1,7 +1,9 @@
 # AVRmada (Battleship for the ATMega328P)
 
 > **Authors:** Peter Kamp and Brendan Brooks
-> **Version:** 1.1 
+> 
+> **Version:** 1.1
+> 
 > **Copyright:** 2025
 
 A two-player Battleship game designed to run on bare-metal AVR C (no Arduino libraries), featuring:

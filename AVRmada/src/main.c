@@ -86,35 +86,36 @@ static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
 /* -------------------------------------------------------------------------
  *  GAME STATES
  * ------------------------------------------------------------------------- */
-static enum {
-	GS_RESET,
-	GS_MAINMENU,
-	GS_NEWGAME,
-    GS_PLACING,
-    GS_WAIT,
-    GS_MYTURN,
-    GS_WAITRES,
-    GS_ENEMYTURN,
-    GS_OVER
-} gState;
-
-static enum {
-    NS_IDLE,
-    NS_WAIT_READY,
-    NS_DECIDE,
-    NS_MY_TURN,
-    NS_PEER_TURN,
-    NS_WAIT_RES,
-    NS_GAME_OVER
-} nState;
 
 static enum {
 	GM_MULTIPLAYER,
 	GM_SINGLEPLAYER
 } gMode;
 
+static enum {
+	GS_RESET,
+	GS_MAINMENU,
+	GS_NEWGAME,
+	GS_PLACING,
+	GS_WAIT,
+	GS_MYTURN,
+	GS_WAITRES,
+	GS_ENEMYTURN,
+	GS_OVER
+} gState;
+
+static enum {
+	NS_IDLE,
+	NS_WAIT_READY,
+	NS_DECIDE,
+	NS_MY_TURN,
+	NS_PEER_TURN,
+	NS_WAIT_RES,
+	NS_GAME_OVER
+} nState;
+
 /* -------------------------------------------------------------------------
- *  UI HANDLERS
+ *  GAME STATE HANDLERS
  * ------------------------------------------------------------------------- */
 static void handle_reset(void);
 static void handle_main_menu(void);
@@ -567,35 +568,35 @@ static void handle_over(void) {
  * Sets up peripherals, screen, and enters main game loop.
  */
 int main(void) {
-    /* --- Initialize TFT / SPI (Display setup) --- */
-    ILI9341_CS_DDR  |= 1 << ILI9341_CS_PIN;
-    ILI9341_DC_DDR  |= 1 << ILI9341_DC_PIN;
-    ILI9341_RST_DDR |= 1 << ILI9341_RST_PIN;
-    DC_DATA();
-    RST_HIGH();
+	/* --- Initialize TFT / SPI (Display setup) --- */
+	ILI9341_CS_DDR  |= 1 << ILI9341_CS_PIN;
+	ILI9341_DC_DDR  |= 1 << ILI9341_DC_PIN;
+	ILI9341_RST_DDR |= 1 << ILI9341_RST_PIN;
+	DC_DATA();
+	RST_HIGH();
 
-    spi_init();
-    ili9341_init();
+	spi_init();
+	ili9341_init();
 
-    uint8_t madctl = 0x28;
+	uint8_t madctl = 0x28;
     ili9341_send_command_bytes(0x36, &madctl, 1);
 
-    /* --- Initialize Peripherals --- */
-    adc_init();
-    button_init();
-    uart_init();
-    stdout = &uart_stdout;   // Redirect printf to UART
-	
+	/* --- Initialize Peripherals --- */
+	adc_init();
+	button_init();
+	uart_init();
+	stdout = &uart_stdout;   // Redirect printf to UART
+
 	gState = GS_RESET;		 // The initial game state is GS_RESET
 	
-    /* ---------------------------------------------------------------------
-     * Main game loop (runs forever)
-     * --------------------------------------------------------------------- */
-    while (1) {
-        net_tick(); // Process network events (incoming messages, retries)
+	/* ---------------------------------------------------------------------
+	 * Main game loop (runs forever)
+	 * --------------------------------------------------------------------- */
+	while (1) {
+		net_tick(); // Process network events (incoming messages, retries)
 
-        /* --- Handle game state --- */
-        switch (gState) {
+		/* --- Handle game state --- */
+		switch (gState) {
 			case GS_RESET:
 				handle_reset();				// Reset full protocol and board state; draw the main menu screen; update gState (to GS_MAINMENU) and default gMode (to GM_MULTIPLAYER)
 				break;
@@ -605,27 +606,27 @@ int main(void) {
 			case GS_NEWGAME:
 				handle_new_game();			// Draw initial game screen; goes to GS_PLACING
 				break;
-            case GS_PLACING:
-                handle_placing();
-                break;
-            case GS_WAIT:
-                handle_wait_peer();
-                break;
-            case GS_MYTURN:
-                handle_my_turn();
-                break;
-            case GS_WAITRES:
-                /* Passive ? waiting for attack result */
-                break;
-            case GS_ENEMYTURN:
-                /* Passive ? waiting for peer's move */
-                break;
-            case GS_OVER:
-                handle_over();
-                break;
-        }
+			case GS_PLACING:
+				handle_placing();
+				break;
+			case GS_WAIT:
+				handle_wait_peer();
+				break;
+			case GS_MYTURN:
+				handle_my_turn();
+				break;
+			case GS_WAITRES:
+				/* Passive ? waiting for attack result */
+				break;
+			case GS_ENEMYTURN:
+				/* Passive ? waiting for peer's move */
+				break;
+			case GS_OVER:
+				handle_over();
+				break;
+		}
 
-        _delay_ms(1);   // Tick every 1 ms
-        systemTime++;   // Advance system time counter
-    }
+		_delay_ms(1);   // Tick every 1 ms
+		systemTime++;   // Advance system time counter
+	}
 }

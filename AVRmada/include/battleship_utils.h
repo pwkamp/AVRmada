@@ -32,6 +32,7 @@
 #define STATUS_Y_PX        210
 
 /* Color definitions (RGB565 via gfx.h) */
+#define CLR_MM_BG		   rgb(0,0,0) 		// Main menu's background color
 #define CLR_BLACK          rgb(0,0,0)
 #define CLR_WHITE          rgb(255,255,255)
 #define CLR_DARK_GRAY	   rgb(64,64,64)
@@ -134,8 +135,9 @@ void     enemy_place_random(void);
 
 /* GUI screen builders */
 void	 gui_draw_main_menu(void);
-void     gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color);
-void     gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color);
+void	 gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color);
+void	 gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color);
+void     gui_animate_title_letter_v(void);
 void     gui_draw_placement(void);
 void     gui_draw_play_screen(void);
 

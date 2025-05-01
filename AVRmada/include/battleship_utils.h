@@ -34,6 +34,9 @@
 /* Color definitions (RGB565 via gfx.h) */
 #define CLR_BLACK          rgb(0,0,0)
 #define CLR_WHITE          rgb(255,255,255)
+#define CLR_DARK_GRAY	   rgb(64,64,64)
+#define CLR_LIGHT_GRAY	   rgb(128,128,128)
+#define CLR_GREEN          rgb(0,255,0)
 #define CLR_CYAN           rgb(0,255,255)
 #define CLR_NAVY           rgb(0,0,128)
 #define CLR_SHIP           rgb(64,64,64)
@@ -130,6 +133,9 @@ void     player_place_current_ship(uint8_t row, uint8_t col,
 void     enemy_place_random(void);
 
 /* GUI screen builders */
+void	 gui_draw_main_menu(void);
+void     gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color);
+void     gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color);
 void     gui_draw_placement(void);
 void     gui_draw_play_screen(void);
 

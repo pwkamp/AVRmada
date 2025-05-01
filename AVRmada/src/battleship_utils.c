@@ -248,19 +248,63 @@ void enemy_place_random(void) {
 /* -------------------------------------------------------------------------
  *  STATIC GUI BUILDERS
  * ------------------------------------------------------------------------- */
+
+/*
+ * Draw the initial main menu screen.
+ */
+void gui_draw_main_menu(void) {
+	
+	// Black background
+	fillScreen(CLR_BLACK);
+	
+	// Start the title text ("A Rmada" is missing its letter V!)
+	drawString(67, 15, "A Rmada", CLR_WHITE, CLR_BLACK, 5, &font5x7, 0);
+	drawString(162, 55, "ECE:3360", CLR_WHITE, CLR_BLACK, 2, &font5x7, 0);
+	
+	// Draw button textures
+	gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+	gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+	
+	// Finish the title ("AVRmada" found its letter V!)
+	for (uint8_t i=0; i<255; i+=3) {
+		drawString(93, 15, "V", rgb(i, i, i), CLR_BLACK, 5, &font5x7, 0);	// The letter "V" slowly fades into the title
+	}
+}
+
+/*
+ * Draw or redraw the multiplayer button on the main menu screen.
+ */
+void gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color) {
+	fillRectBorder(60, 95, 200, 50, 5, border_color);
+	drawString(74, 109, "Multiplayer", text_color, CLR_BLACK, 3, &font5x7, 0);
+}
+
+/*
+ * Draw or redraw the singleplayer button on the main menu screen.
+ */
+void gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color) {
+	fillRectBorder(60, 168, 200, 50, 5, border_color);
+	drawString(89, 182, "Versus AI", text_color, CLR_BLACK, 3, &font5x7, 0);
+}
+
+
 /**
  * Draw the initial ship placement screen.
  */
 void gui_draw_placement(void) {
+	
+	header_place();
+	status_msg("Use stick to place");
+	
+	// Remove visual artifacts from the main menu screen not being drawn over
+	fillRect(0, 200, 320, 10, CLR_BLACK);
+	
     for (uint8_t r = 0; r < GRID_ROWS; ++r) {
         for (uint8_t c = 0; c < GRID_COLS; ++c) {
             draw_cell(r, c, CLR_CYAN, PLAYER_GRID_X_PX); // Player grid
             draw_cell(r, c, CLR_NAVY, ENEMY_GRID_X_PX);  // Enemy grid
         }
     }
-
-    header_place();
-    status_msg("Use stick to place");
 
     // Redraw already placed ships
     for (uint8_t i = 0; i < ghostShipIdx; ++i) {

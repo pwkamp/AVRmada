@@ -1,9 +1,9 @@
 /* -------------------------------------------------------------------------
  * main.c - Two-player Battleship over UART
  *
- * v1.1 - Refactor Directories
+ * v1.2 - Initial Sound Effects
  * Copyright (c) 2025 Peter Kamp
- * ------------------------------------------------------------------------- */
+ * --------------------------------------------------------------------------- */
 
 #define F_CPU 16000000UL
 
@@ -16,6 +16,12 @@
 
 #include "gfx.h"
 #include "battleship_utils.h"
+#include "buzzer.h"
+
+/* -------------------------------------------------------------------------
+ *  GAME SETTINGS
+ * ------------------------------------------------------------------------- */
+bool soundsEnabled	 = true;
 
 /* -------------------------------------------------------------------------
  *  GLOBAL GAME STATE
@@ -162,6 +168,7 @@ static void on_attack(uint8_t r, uint8_t c) {
 			nState = NS_GAME_OVER;
 			gState = GS_OVER;
 			status_msg("You lose ? tap twice");
+			play_lose_sound(&soundsEnabled);
 		} else {
 			// Otherwise, send result and hand turn to you
 			tx_result(r, c, hit);
@@ -171,6 +178,7 @@ static void on_attack(uint8_t r, uint8_t c) {
 			nextMoveAllowed = systemTime;
 			gui_draw_play_screen();
 			draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
+			play_enemy_attack_sound(&hit, &soundsEnabled);
 		}
 	} else {
 		// Duplicate attack (already attacked here) ? still must reply
@@ -185,25 +193,29 @@ static void on_result(uint8_t r, uint8_t c, bool hit) {
 	if (pendingRow < 0)
 		return; // Ignore stray result if we don't have a pending shot
 
-	// 1) Erase pending cyan cell
+	// 1) If sounds enabled, play hit or miss sound depending on outcome
+	play_attack_sound(&hit, &soundsEnabled);
+
+	// 2) Erase pending cyan cell
 	draw_cell(pendingRow, pendingCol, CLR_NAVY, ENEMY_GRID_X_PX);
 	pendingRow = pendingCol = -1;
 
-	// 2) Paint final outcome
+	// 3) Paint final outcome
 	draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, ENEMY_GRID_X_PX);
 
-	// 3) Mark in our enemyGrid memory
+	// 4) Mark in our enemyGrid memory
 	Cell *cell = &enemyGrid[r][c];
 	cell->occupied = hit;
 
-	// 4) Redraw selection cursor
+	// 5) Redraw selection cursor
 	draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
 
-	// 5) Check for game end or enemy turn
+	// 6) Check for game end or enemy turn
 	if (hit && --enemyRemaining == 0) {
 		nState = NS_GAME_OVER;
 		gState = GS_OVER;
 		status_msg("You win! ? tap twice");
+		play_win_sound(&soundsEnabled);
 	} else {
 		nState = NS_PEER_TURN;
 		gState = GS_ENEMYTURN;

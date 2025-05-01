@@ -6,7 +6,7 @@
  * - Basic drawing primitives (pixel, line, rectangle, circle, etc.)
  * - Text and font rendering utilities
  *
- * v1.0 - Initial Commit
+ * v1.2 - Initial Sound Effects
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 

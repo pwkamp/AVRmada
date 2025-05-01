@@ -31,22 +31,22 @@ Ship   enemyFleet [NUM_SHIPS];
 uint8_t lastEnemyRow = 0;
 uint8_t lastEnemyCol = 0;
 
-uint8_t selRow, selCol;               // Current selection cursor
-uint8_t ghostShipIdx;                  // Ship being placed
-bool    ghostHorizontal;               // Ship placement orientation
+uint8_t selRow, selCol;			   // Current selection cursor
+uint8_t ghostShipIdx;				  // Ship being placed
+bool	ghostHorizontal;			   // Ship placement orientation
 uint8_t playerRemaining, enemyRemaining;
 
-static int8_t pendingRow = -1;          // Row of pending outgoing shot
-static int8_t pendingCol = -1;          // Col of pending outgoing shot
+static int8_t pendingRow = -1;		  // Row of pending outgoing shot
+static int8_t pendingCol = -1;		  // Col of pending outgoing shot
 
 /* -------------------------------------------------------------------------
  *  LOCAL STATE
  * ------------------------------------------------------------------------- */
-static uint32_t systemTime = 0;         // System milliseconds ticker
-static uint32_t nextMoveAllowed = 0;    // Joystick move repeat throttle
+static uint32_t systemTime = 0;		 // System milliseconds ticker
+static uint32_t nextMoveAllowed = 0;	// Joystick move repeat throttle
 
-static bool     buttonLatch = false;    // Prevent multiple button presses
-static bool     overButtonLatch = false;
+static bool	 buttonLatch = false;	// Prevent multiple button presses
+static bool	 overButtonLatch = false;
 static uint8_t  overTapCount = 0;
 
 /* -------------------------------------------------------------------------
@@ -59,28 +59,28 @@ static FILE uart_stdout = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRIT
  * ------------------------------------------------------------------------- */
 #define RX_MAX 32
 
-static char     rxBuf[RX_MAX];           // RX buffer
-static uint8_t  rxIdx = 0;                // Current RX buffer index
+static char	 rxBuf[RX_MAX];		   // RX buffer
+static uint8_t  rxIdx = 0;				// Current RX buffer index
 
-static uint16_t selfToken = 0;            // Local token (based on finish time)
-static uint16_t peerToken = 0;            // Remote peer token
+static uint16_t selfToken = 0;			// Local token (based on finish time)
+static uint16_t peerToken = 0;			// Remote peer token
 
-static uint16_t resendTick = 0;           // ms since last packet sent
-static uint16_t postReadyLeft = 0;         // How long to keep sending READY after sync
+static uint16_t resendTick = 0;		   // ms since last packet sent
+static uint16_t postReadyLeft = 0;		 // How long to keep sending READY after sync
 
 /* -------------------------------------------------------------------------
  *  PROTOCOL TRANSMISSION HELPERS
  * ------------------------------------------------------------------------- */
 static inline void tx_ready(void) {
-    printf("READY %u\n", selfToken);
+	printf("READY %u\n", selfToken);
 }
 
 static inline void tx_attack(uint8_t r, uint8_t c) {
-    printf("A %u %u\n", r, c);
+	printf("A %u %u\n", r, c);
 }
 
 static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
-    printf("R %u %u %c\n", r, c, hit ? 'H' : 'M');
+	printf("R %u %u %c\n", r, c, hit ? 'H' : 'M');
 }
 
 /* -------------------------------------------------------------------------
@@ -134,101 +134,101 @@ static void handle_over(void);
  * Handle a READY packet received from peer.
  */
 static void on_ready(uint16_t tok) {
-    peerToken = tok;
-    if (nState == NS_WAIT_READY)
-        nState = NS_DECIDE;
+	peerToken = tok;
+	if (nState == NS_WAIT_READY)
+		nState = NS_DECIDE;
 }
 
 /**
  * Handle an ATTACK packet received from peer.
  */
 static void on_attack(uint8_t r, uint8_t c) {
-    if (r >= GRID_ROWS || c >= GRID_COLS)
-        return; // Ignore invalid coordinates
+	if (r >= GRID_ROWS || c >= GRID_COLS)
+		return; // Ignore invalid coordinates
 
-    Cell *cell = &playerGrid[r][c];
-    bool first_time = !cell->attacked;
-    cell->attacked = true;
+	Cell *cell = &playerGrid[r][c];
+	bool first_time = !cell->attacked;
+	cell->attacked = true;
 
-    bool hit = cell->occupied;
+	bool hit = cell->occupied;
 
-    if (first_time) {
-        // First time being attacked here ? update grid visually
-        draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, PLAYER_GRID_X_PX);
+	if (first_time) {
+		// First time being attacked here ? update grid visually
+		draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, PLAYER_GRID_X_PX);
 
-        if (hit && --playerRemaining == 0) {
-            // Game over (you lose)
-            tx_result(r, c, hit);
-            nState = NS_GAME_OVER;
-            gState = GS_OVER;
-            status_msg("You lose ? tap twice");
-        } else {
-            // Otherwise, send result and hand turn to you
-            tx_result(r, c, hit);
-            nState = NS_MY_TURN;
-            gState = GS_MYTURN;
-            status_msg("Your turn");
-            nextMoveAllowed = systemTime;
-            gui_draw_play_screen();
+		if (hit && --playerRemaining == 0) {
+			// Game over (you lose)
+			tx_result(r, c, hit);
+			nState = NS_GAME_OVER;
+			gState = GS_OVER;
+			status_msg("You lose ? tap twice");
+		} else {
+			// Otherwise, send result and hand turn to you
+			tx_result(r, c, hit);
+			nState = NS_MY_TURN;
+			gState = GS_MYTURN;
+			status_msg("Your turn");
+			nextMoveAllowed = systemTime;
+			gui_draw_play_screen();
 			draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
-        }
-    } else {
-        // Duplicate attack (already attacked here) ? still must reply
-        tx_result(r, c, hit);
-    }
+		}
+	} else {
+		// Duplicate attack (already attacked here) ? still must reply
+		tx_result(r, c, hit);
+	}
 }
 
 /**
  * Handle a RESULT packet received from peer (outcome of our shot).
  */
 static void on_result(uint8_t r, uint8_t c, bool hit) {
-    if (pendingRow < 0)
-        return; // Ignore stray result if we don't have a pending shot
+	if (pendingRow < 0)
+		return; // Ignore stray result if we don't have a pending shot
 
-    // 1) Erase pending cyan cell
-    draw_cell(pendingRow, pendingCol, CLR_NAVY, ENEMY_GRID_X_PX);
-    pendingRow = pendingCol = -1;
+	// 1) Erase pending cyan cell
+	draw_cell(pendingRow, pendingCol, CLR_NAVY, ENEMY_GRID_X_PX);
+	pendingRow = pendingCol = -1;
 
-    // 2) Paint final outcome
-    draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, ENEMY_GRID_X_PX);
+	// 2) Paint final outcome
+	draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, ENEMY_GRID_X_PX);
 
-    // 3) Mark in our enemyGrid memory
-    Cell *cell = &enemyGrid[r][c];
-    cell->occupied = hit;
+	// 3) Mark in our enemyGrid memory
+	Cell *cell = &enemyGrid[r][c];
+	cell->occupied = hit;
 
-    // 4) Redraw selection cursor
-    draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
+	// 4) Redraw selection cursor
+	draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
 
-    // 5) Check for game end or enemy turn
-    if (hit && --enemyRemaining == 0) {
-        nState = NS_GAME_OVER;
-        gState = GS_OVER;
-        status_msg("You win! ? tap twice");
-    } else {
-        nState = NS_PEER_TURN;
-        gState = GS_ENEMYTURN;
-        status_msg("Enemy turn");
-    }
+	// 5) Check for game end or enemy turn
+	if (hit && --enemyRemaining == 0) {
+		nState = NS_GAME_OVER;
+		gState = GS_OVER;
+		status_msg("You win! ? tap twice");
+	} else {
+		nState = NS_PEER_TURN;
+		gState = GS_ENEMYTURN;
+		status_msg("Enemy turn");
+	}
 }
 
 /**
  * Parse a full incoming line from UART.
  */
 static void parse_line(char *l) {
-    if (!strncmp(l, "READY", 5)) {
-        uint16_t t;
-        if (sscanf(l + 5, "%u", &t) == 1)
-            on_ready(t);
-    } else if (l[0] == 'A') {
-        uint8_t r, c;
-        if (sscanf(l + 1, "%hhu %hhu", &r, &c) == 2)
-            on_attack(r, c);
-    } else if (l[0] == 'R') {
-        uint8_t r, c;
-        char h;
-        if (sscanf(l + 1, "%hhu %hhu %c", &r, &c, &h) == 3)
-            on_result(r, c, h == 'H');
-    }
+	if (!strncmp(l, "READY", 5)) {
+		uint16_t t;
+		if (sscanf(l + 5, "%u", &t) == 1)
+			on_ready(t);
+	} else if (l[0] == 'A') {
+		uint8_t r, c;
+		if (sscanf(l + 1, "%hhu %hhu", &r, &c) == 2)
+			on_attack(r, c);
+	} else if (l[0] == 'R') {
+		uint8_t r, c;
+		char h;
+		if (sscanf(l + 1, "%hhu %hhu %c", &r, &c, &h) == 3)
+			on_result(r, c, h == 'H');
+	}
 }
 
 /* -------------------------------------------------------------------------
@@ -240,45 +240,45 @@ static void parse_line(char *l) {
  * Call this function every 1ms.
  */
 static void net_tick(void) {
-    /* --- UART Receiving --- */
-    while (uart_char_available()) {
-        char c = uart_getchar();
-        if (c == '\n' || c == '\r') {
-            if (rxIdx) {
-                rxBuf[rxIdx] = '\0';
-                parse_line(rxBuf);
-                rxIdx = 0;
-            }
-        } else if (rxIdx < RX_MAX - 1) {
-            rxBuf[rxIdx++] = c;
-        }
-    }
+	/* --- UART Receiving --- */
+	while (uart_char_available()) {
+		char c = uart_getchar();
+		if (c == '\n' || c == '\r') {
+			if (rxIdx) {
+				rxBuf[rxIdx] = '\0';
+				parse_line(rxBuf);
+				rxIdx = 0;
+			}
+		} else if (rxIdx < RX_MAX - 1) {
+			rxBuf[rxIdx++] = c;
+		}
+	}
 
-    /* --- READY packet retransmission logic --- */
-    bool needReady = (nState == NS_WAIT_READY) || (postReadyLeft > 0);
-    if (needReady && ++resendTick >= 500) {
-        resendTick = 0;
-        tx_ready();
-    }
+	/* --- READY packet retransmission logic --- */
+	bool needReady = (nState == NS_WAIT_READY) || (postReadyLeft > 0);
+	if (needReady && ++resendTick >= 500) {
+		resendTick = 0;
+		tx_ready();
+	}
 
-    /* --- Attack retransmission logic --- */
-    if (nState == NS_WAIT_RES && ++resendTick >= 100) {
-        tx_attack(pendingRow, pendingCol);
-        resendTick = 0;
-    }
+	/* --- Attack retransmission logic --- */
+	if (nState == NS_WAIT_RES && ++resendTick >= 100) {
+		tx_attack(pendingRow, pendingCol);
+		resendTick = 0;
+	}
 
-    /* --- Peer timeout while waiting for their move --- */
-    if (nState == NS_PEER_TURN) {
-        if (++resendTick >= 120000) { // 2 minutes timeout
-            status_msg("Peer lost ? reset");
-            _delay_ms(000);
-            handle_reset();
-        }
-    }
+	/* --- Peer timeout while waiting for their move --- */
+	if (nState == NS_PEER_TURN) {
+		if (++resendTick >= 120000) { // 2 minutes timeout
+			status_msg("Peer lost ? reset");
+			_delay_ms(000);
+			handle_reset();
+		}
+	}
 
-    /* --- Decrease post-ready extra countdown --- */
-    if (postReadyLeft)
-        postReadyLeft--;
+	/* --- Decrease post-ready extra countdown --- */
+	if (postReadyLeft)
+		postReadyLeft--;
 }
 
 /* -------------------------------------------------------------------------
@@ -286,7 +286,7 @@ static void net_tick(void) {
  * ------------------------------------------------------------------------- */
 
 static void handle_reset(void) {
-	
+
 	board_reset();
 	ghostShipIdx = 0;
 	ghostHorizontal = true;
@@ -295,23 +295,23 @@ static void handle_reset(void) {
 	peerToken = 0;
 	resendTick = 0;
 	postReadyLeft = 0;
-	
+
 	gui_draw_main_menu();
-	
+
 	gState = GS_MAINMENU;
-	gMode  = GM_MULTIPLAYER;	// Default gMode is GM_MULTIPLAYER, until user selects otherwise in GS_MAINMENU 
+	gMode  = GM_MULTIPLAYER;	// Default gMode is GM_MULTIPLAYER, until user selects otherwise in GS_MAINMENU
 }
 
 /* -------------------------------------------------------------------------
  *  MAIN MENU SCREEN - USER SELECTS SINGLE OR MULTIPLAYER MODE
  * ------------------------------------------------------------------------- */
 static void handle_main_menu(void) {
-		
+
 	/* --- If user presses the pushbutton, start a game --- */
 	if (button_is_pressed()) {
 		gState = GS_NEWGAME;
 	}
-	
+
 	/* --- Select single/multiplayer mode with the joystick, and update button textures --- */
 	uint16_t y = adc_read(1);
 
@@ -342,72 +342,72 @@ static void handle_new_game(void) {
  * Allow player to place their ships manually using joystick and button.
  */
 static void handle_placing(void) {
-    static uint32_t invalidTimer = 0;
-    static bool showInvalid = false;
+	static uint32_t invalidTimer = 0;
+	static bool showInvalid = false;
 
-    if (showInvalid) {
-        if (systemTime - invalidTimer >= 500) {
-            showInvalid = false;
-            status_msg("Use stick to place");
-        } else {
-            return;
-        }
-    }
+	if (showInvalid) {
+		if (systemTime - invalidTimer >= 500) {
+			showInvalid = false;
+			status_msg("Use stick to place");
+		} else {
+			return;
+		}
+	}
 
-    /* --- Joystick navigation for placement --- */
-    uint16_t x = adc_read(0);
-    uint16_t y = adc_read(1);
-    bool moved = false;
-    uint8_t oldR = selRow, oldC = selCol;
+	/* --- Joystick navigation for placement --- */
+	uint16_t x = adc_read(0);
+	uint16_t y = adc_read(1);
+	bool moved = false;
+	uint8_t oldR = selRow, oldC = selCol;
 
-    if (systemTime >= nextMoveAllowed) {
-        if      (y < JOY_MIN_RAW && selRow > 0)               { --selRow; moved = true; }
-        else if (y > JOY_MAX_RAW && selRow < GRID_ROWS - 1)    { ++selRow; moved = true; }
-        else if (x < JOY_MIN_RAW && selCol > 0)                { --selCol; moved = true; }
-        else if (x > JOY_MAX_RAW && selCol < GRID_COLS - 1)    { ++selCol; moved = true; }
+	if (systemTime >= nextMoveAllowed) {
+		if	  (y < JOY_MIN_RAW && selRow > 0)			   { --selRow; moved = true; }
+		else if (y > JOY_MAX_RAW && selRow < GRID_ROWS - 1)	{ ++selRow; moved = true; }
+		else if (x < JOY_MIN_RAW && selCol > 0)				{ --selCol; moved = true; }
+		else if (x > JOY_MAX_RAW && selCol < GRID_COLS - 1)	{ ++selCol; moved = true; }
 
-        if (moved) {
-            uint8_t len = SHIP_LENGTHS[ghostShipIdx];
-            if (ghostHorizontal && selCol > GRID_COLS - len) selCol = GRID_COLS - len;
-            if (!ghostHorizontal && selRow > GRID_ROWS - len) selRow = GRID_ROWS - len;
-            ghost_update(oldR, oldC, ghostHorizontal, false);
-            ghost_update(selRow, selCol, ghostHorizontal, true);
-            nextMoveAllowed = systemTime + JOY_REPEAT_DELAY_MS;
-        }
-    }
+		if (moved) {
+			uint8_t len = SHIP_LENGTHS[ghostShipIdx];
+			if (ghostHorizontal && selCol > GRID_COLS - len) selCol = GRID_COLS - len;
+			if (!ghostHorizontal && selRow > GRID_ROWS - len) selRow = GRID_ROWS - len;
+			ghost_update(oldR, oldC, ghostHorizontal, false);
+			ghost_update(selRow, selCol, ghostHorizontal, true);
+			nextMoveAllowed = systemTime + JOY_REPEAT_DELAY_MS;
+		}
+	}
 
-    /* --- Button handling for placement/rotation --- */
-    bool pressed = button_is_pressed();
-    if (pressed && !buttonLatch) {
-        buttonLatch = true;
-        uint32_t holdStart = systemTime;
+	/* --- Button handling for placement/rotation --- */
+	bool pressed = button_is_pressed();
+	if (pressed && !buttonLatch) {
+		buttonLatch = true;
+		uint32_t holdStart = systemTime;
 
-        // Check for long hold vs short press
-        while (button_is_pressed() && (systemTime - holdStart) < 1000) {
-            _delay_ms(1);
-            systemTime++;
-            net_tick(); // Keep network responsive while holding
-        }
+		// Check for long hold vs short press
+		while (button_is_pressed() && (systemTime - holdStart) < 1000) {
+			_delay_ms(1);
+			systemTime++;
+			net_tick(); // Keep network responsive while holding
+		}
 
-        if ((systemTime - holdStart) >= 500) {
-            /* Long press ? rotate ship */
-            ghost_update(selRow, selCol, ghostHorizontal, false);
-            ghostHorizontal = !ghostHorizontal;
+		if ((systemTime - holdStart) >= 500) {
+			/* Long press ? rotate ship */
+			ghost_update(selRow, selCol, ghostHorizontal, false);
+			ghostHorizontal = !ghostHorizontal;
 
-            uint8_t len = SHIP_LENGTHS[ghostShipIdx];
-            if (ghostHorizontal && selCol > GRID_COLS - len) selCol = GRID_COLS - len;
-            if (!ghostHorizontal && selRow > GRID_ROWS - len) selRow = GRID_ROWS - len;
+			uint8_t len = SHIP_LENGTHS[ghostShipIdx];
+			if (ghostHorizontal && selCol > GRID_COLS - len) selCol = GRID_COLS - len;
+			if (!ghostHorizontal && selRow > GRID_ROWS - len) selRow = GRID_ROWS - len;
 
-            ghost_update(selRow, selCol, ghostHorizontal, true);
-        } else {
-            /* Short press ? attempt to place ship */
-            uint8_t len = SHIP_LENGTHS[ghostShipIdx];
-            if (ship_can_fit(playerGrid, selRow, selCol, len, ghostHorizontal)) {
-                ghost_update(selRow, selCol, ghostHorizontal, false);
-                player_place_current_ship(selRow, selCol, ghostHorizontal, len);
-				
+			ghost_update(selRow, selCol, ghostHorizontal, true);
+		} else {
+			/* Short press ? attempt to place ship */
+			uint8_t len = SHIP_LENGTHS[ghostShipIdx];
+			if (ship_can_fit(playerGrid, selRow, selCol, len, ghostHorizontal)) {
+				ghost_update(selRow, selCol, ghostHorizontal, false);
+				player_place_current_ship(selRow, selCol, ghostHorizontal, len);
+
 				ghostShipIdx++;
-				
+
 				if (ghostShipIdx < NUM_SHIPS) {
 					uint8_t nextLen = SHIP_LENGTHS[ghostShipIdx];
 
@@ -417,27 +417,27 @@ static void handle_placing(void) {
 
 					ghost_update(selRow, selCol, ghostHorizontal, true);   // will show grey or red immediately
 				} else if (ghostShipIdx == NUM_SHIPS) {
-                    // All ships placed ? ready to connect
-                    selfToken = (uint16_t)systemTime; // Use finishing time as token
-                    tx_ready();
-                    nState = NS_WAIT_READY;
-                    gState = GS_WAIT;
-                    resendTick = 0;
-                    peerToken = 0;
-                    postReadyLeft = 0;
-                    status_msg("Searching peer...");
-                }
-            } else {
+					// All ships placed ? ready to connect
+					selfToken = (uint16_t)systemTime; // Use finishing time as token
+					tx_ready();
+					nState = NS_WAIT_READY;
+					gState = GS_WAIT;
+					resendTick = 0;
+					peerToken = 0;
+					postReadyLeft = 0;
+					status_msg("Searching peer...");
+				}
+			} else {
 				// Immediately update ghost for next ship to prevent stale display
 				ghost_update(selRow, selCol, ghostHorizontal, true);
-                // Invalid placement (overlapping/invalid)
-                status_msg("Invalid placement!");
-                showInvalid = true;
-                invalidTimer = systemTime;
-            }
-        }
-    }
-    if (!pressed) buttonLatch = false;
+				// Invalid placement (overlapping/invalid)
+				status_msg("Invalid placement!");
+				showInvalid = true;
+				invalidTimer = systemTime;
+			}
+		}
+	}
+	if (!pressed) buttonLatch = false;
 }
 
 /* -------------------------------------------------------------------------
@@ -447,39 +447,39 @@ static void handle_placing(void) {
  * Handles deciding who goes first after both players place ships.
  */
 static void handle_wait_peer(void) {
-    if (nState == NS_DECIDE && peerToken) {
-        /* Decide turn order based on token */
-        bool iStart = (selfToken > peerToken);
+	if (nState == NS_DECIDE && peerToken) {
+		/* Decide turn order based on token */
+		bool iStart = (selfToken > peerToken);
 
-        /* Calculate total enemy ship cells */
-        {
-            uint8_t total_cells = 0;
-            for (uint8_t i = 0; i < NUM_SHIPS; ++i)
-                total_cells += SHIP_LENGTHS[i];
-            enemyRemaining = total_cells;
-        }
+		/* Calculate total enemy ship cells */
+		{
+			uint8_t total_cells = 0;
+			for (uint8_t i = 0; i < NUM_SHIPS; ++i)
+				total_cells += SHIP_LENGTHS[i];
+			enemyRemaining = total_cells;
+		}
 
-        /* First turn assignment */
-        if (iStart) {
-            nState = NS_MY_TURN;
-            gState = GS_MYTURN;
-        } else {
-            nState = NS_PEER_TURN;
-            gState = GS_ENEMYTURN;
-        }
-		
+		/* First turn assignment */
+		if (iStart) {
+			nState = NS_MY_TURN;
+			gState = GS_MYTURN;
+		} else {
+			nState = NS_PEER_TURN;
+			gState = GS_ENEMYTURN;
+		}
+
 		selRow = GRID_ROWS / 2;
 		selCol = GRID_COLS / 2;
 
-        /* Prepare to flood READY for a short time still */
-        postReadyLeft = 2000;
-        resendTick = 0;
-        nextMoveAllowed = systemTime;
+		/* Prepare to flood READY for a short time still */
+		postReadyLeft = 2000;
+		resendTick = 0;
+		nextMoveAllowed = systemTime;
 
-        gui_draw_play_screen();
+		gui_draw_play_screen();
 		draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
-        status_msg(iStart ? "Your turn" : "Enemy turn");
-    }
+		status_msg(iStart ? "Your turn" : "Enemy turn");
+	}
 }
 
 /* -------------------------------------------------------------------------
@@ -489,56 +489,56 @@ static void handle_wait_peer(void) {
  * Handles joystick navigation and firing at enemy grid.
  */
 static void handle_my_turn(void) {
-    /* --- Cursor navigation --- */
-    uint16_t joyX = adc_read(0);
-    uint16_t joyY = adc_read(1);
-    bool moved = false;
-    uint8_t oldR = selRow, oldC = selCol;
+	/* --- Cursor navigation --- */
+	uint16_t joyX = adc_read(0);
+	uint16_t joyY = adc_read(1);
+	bool moved = false;
+	uint8_t oldR = selRow, oldC = selCol;
 
-    if (systemTime >= nextMoveAllowed) {
-        if      (joyY < JOY_MIN_RAW && selRow > 0)           { --selRow; moved = true; }
-        else if (joyY > JOY_MAX_RAW && selRow < GRID_ROWS-1) { ++selRow; moved = true; }
-        else if (joyX < JOY_MIN_RAW && selCol > 0)           { --selCol; moved = true; }
-        else if (joyX > JOY_MAX_RAW && selCol < GRID_COLS-1) { ++selCol; moved = true; }
+	if (systemTime >= nextMoveAllowed) {
+		if	  (joyY < JOY_MIN_RAW && selRow > 0)		   { --selRow; moved = true; }
+		else if (joyY > JOY_MAX_RAW && selRow < GRID_ROWS-1) { ++selRow; moved = true; }
+		else if (joyX < JOY_MIN_RAW && selCol > 0)		   { --selCol; moved = true; }
+		else if (joyX > JOY_MAX_RAW && selCol < GRID_COLS-1) { ++selCol; moved = true; }
 
-        if (moved) {
-            // Redraw previous cell background
-            Cell *old = &enemyGrid[oldR][oldC];
-            uint16_t bg = old->attacked
-                ? (old->occupied ? CLR_HIT : CLR_MISS)
-                : CLR_NAVY;
-            draw_cell(oldR, oldC, bg, ENEMY_GRID_X_PX);
+		if (moved) {
+			// Redraw previous cell background
+			Cell *old = &enemyGrid[oldR][oldC];
+			uint16_t bg = old->attacked
+				? (old->occupied ? CLR_HIT : CLR_MISS)
+				: CLR_NAVY;
+			draw_cell(oldR, oldC, bg, ENEMY_GRID_X_PX);
 
-            // Draw new cursor
-            draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
+			// Draw new cursor
+			draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
 
-            nextMoveAllowed = systemTime + JOY_REPEAT_DELAY_MS;
-        }
-    }
+			nextMoveAllowed = systemTime + JOY_REPEAT_DELAY_MS;
+		}
+	}
 
-    /* --- Fire weapon --- */
-    bool pressed = button_is_pressed();
-    if (pressed && !buttonLatch) {
-        buttonLatch = true;
-        Cell *tgt = &enemyGrid[selRow][selCol];
+	/* --- Fire weapon --- */
+	bool pressed = button_is_pressed();
+	if (pressed && !buttonLatch) {
+		buttonLatch = true;
+		Cell *tgt = &enemyGrid[selRow][selCol];
 
-        if (!tgt->attacked) {
-            // Fire at unshot square
-            tgt->attacked = true;
+		if (!tgt->attacked) {
+			// Fire at unshot square
+			tgt->attacked = true;
 
-            draw_cell(selRow, selCol, CLR_PENDING, ENEMY_GRID_X_PX); // Pending color
-            pendingRow = selRow;
-            pendingCol = selCol;
+			draw_cell(selRow, selCol, CLR_PENDING, ENEMY_GRID_X_PX); // Pending color
+			pendingRow = selRow;
+			pendingCol = selCol;
 
-            tx_attack(selRow, selCol);
-            resendTick = 0;
+			tx_attack(selRow, selCol);
+			resendTick = 0;
 
-            nState = NS_WAIT_RES;
-            gState = GS_WAITRES;
-            status_msg("Waiting for result...");
-        }
-    }
-    if (!pressed) buttonLatch = false;
+			nState = NS_WAIT_RES;
+			gState = GS_WAITRES;
+			status_msg("Waiting for result...");
+		}
+	}
+	if (!pressed) buttonLatch = false;
 }
 
 /* -------------------------------------------------------------------------
@@ -548,16 +548,16 @@ static void handle_my_turn(void) {
  * Handles tap-to-reset after a game ends.
  */
 static void handle_over(void) {
-    bool pressed = button_is_pressed();
-    if (pressed && !overButtonLatch) {
-        overButtonLatch = true;
-        if (++overTapCount >= 2) {
-            overTapCount = 0;
-            handle_reset();
-        }
-    }
-    if (!pressed)
-        overButtonLatch = false;
+	bool pressed = button_is_pressed();
+	if (pressed && !overButtonLatch) {
+		overButtonLatch = true;
+		if (++overTapCount >= 2) {
+			overTapCount = 0;
+			handle_reset();
+		}
+	}
+	if (!pressed)
+		overButtonLatch = false;
 }
 
 /* -------------------------------------------------------------------------
@@ -579,7 +579,7 @@ int main(void) {
 	ili9341_init();
 
 	uint8_t madctl = 0x28;
-    ili9341_send_command_bytes(0x36, &madctl, 1);
+	ili9341_send_command_bytes(0x36, &madctl, 1);
 
 	/* --- Initialize Peripherals --- */
 	adc_init();
@@ -588,7 +588,7 @@ int main(void) {
 	stdout = &uart_stdout;   // Redirect printf to UART
 
 	gState = GS_RESET;		 // The initial game state is GS_RESET
-	
+
 	/* ---------------------------------------------------------------------
 	 * Main game loop (runs forever)
 	 * --------------------------------------------------------------------- */

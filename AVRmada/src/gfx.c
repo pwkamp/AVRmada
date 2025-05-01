@@ -556,6 +556,27 @@ void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
     }
 }
 
+/**
+ * Fill *just* the border of a rectangle using 4 strokes, each of thickness `border_size`
+ * (the *center* of the drawn strokes are aligned with the original rectangle)
+ */
+void fillRectBorder(int16_t rect_x, int16_t rect_y, int16_t rect_w, int16_t rect_h, int16_t border_size, uint16_t color) {
+
+	// Stroke alignment coordinates
+	int16_t x_left   = rect_x - border_size/2;
+	int16_t x_right  = rect_x + rect_w - border_size/2;
+	int16_t y_top    = rect_y - border_size/2;
+	int16_t y_bottom = rect_y + rect_h - border_size/2;
+	int16_t bigger_w = rect_w + border_size;
+	int16_t bigger_h = rect_h + border_size;
+	
+	// Fill the 4 strokes
+	fillRect(x_left, y_top, bigger_w, border_size, color);		// Top stroke
+	fillRect(x_right, y_top, border_size, bigger_h, color);		// Right stroke
+	fillRect(x_left, y_bottom, bigger_w, border_size, color);	// Bottom stroke
+	fillRect(x_left, y_top, border_size, bigger_h, color);		// Left stroke
+}
+
 // ---------------------------------------------------------------------------
 // Circle Drawing Functions
 // ---------------------------------------------------------------------------

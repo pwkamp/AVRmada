@@ -87,6 +87,9 @@ static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
  *  GAME STATES
  * ------------------------------------------------------------------------- */
 static enum {
+	GS_RESET,
+	GS_MAINMENU,
+	GS_NEWGAME,
     GS_PLACING,
     GS_WAIT,
     GS_MYTURN,
@@ -105,26 +108,22 @@ static enum {
     NS_GAME_OVER
 } nState;
 
-/* -------------------------------------------------------------------------
- *  GAME INITIALIZATION / RESET
- * ------------------------------------------------------------------------- */
-/**
- * Reset full protocol and board state to start a new game
- */
-static void protocol_reset(void) {
-    board_reset();
-    ghostShipIdx = 0;
-    ghostHorizontal = true;
-    selRow = selCol = GRID_ROWS / 2;
-    nState = NS_IDLE;
-    gState = GS_PLACING;
-    peerToken = 0;
-    resendTick = 0;
-    postReadyLeft = 0;
+static enum {
+	GM_MULTIPLAYER,
+	GM_SINGLEPLAYER
+} gMode;
 
-    status_msg("Place your fleet");
-    gui_draw_placement();
-}
+/* -------------------------------------------------------------------------
+ *  UI HANDLERS
+ * ------------------------------------------------------------------------- */
+static void handle_reset(void);
+static void handle_main_menu(void);
+static void handle_new_game(void);
+static void handle_placing(void);
+static void handle_wait_peer(void);
+static void handle_my_turn(void);
+static void handle_over(void);
+
 
 /* -------------------------------------------------------------------------
  *  INCOMING LINE HANDLERS
@@ -272,7 +271,7 @@ static void net_tick(void) {
         if (++resendTick >= 120000) { // 2 minutes timeout
             status_msg("Peer lost ? reset");
             _delay_ms(000);
-            protocol_reset();
+            handle_reset();
         }
     }
 
@@ -282,12 +281,57 @@ static void net_tick(void) {
 }
 
 /* -------------------------------------------------------------------------
- *  UI HANDLERS
+ *  RESET PROTOCOL & DRAW INITIAL MAIN MENU SCREEN
  * ------------------------------------------------------------------------- */
-static void handle_placing(void);
-static void handle_wait_peer(void);
-static void handle_my_turn(void);
-static void handle_over(void);
+
+static void handle_reset(void) {
+	
+	board_reset();
+	ghostShipIdx = 0;
+	ghostHorizontal = true;
+	selRow = selCol = GRID_ROWS / 2;
+	nState = NS_IDLE;
+	peerToken = 0;
+	resendTick = 0;
+	postReadyLeft = 0;
+	
+	gui_draw_main_menu();
+	
+	gState = GS_MAINMENU;
+	gMode  = GM_MULTIPLAYER;	// Default gMode is GM_MULTIPLAYER, until user selects otherwise in GS_MAINMENU 
+}
+
+/* -------------------------------------------------------------------------
+ *  MAIN MENU SCREEN - USER SELECTS SINGLE OR MULTIPLAYER MODE
+ * ------------------------------------------------------------------------- */
+static void handle_main_menu(void) {
+		
+	/* --- If user presses the pushbutton, start a game --- */
+	if (button_is_pressed()) {
+		gState = GS_NEWGAME;
+	}
+	
+	/* --- Select single/multiplayer mode with the joystick, and update button textures --- */
+	uint16_t y = adc_read(1);
+
+	if (y < JOY_MIN_RAW) {
+		gMode = GM_MULTIPLAYER;
+		gui_draw_multiplayer_button(CLR_WHITE, CLR_CYAN);				// Highlight multiplayer button
+		gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+	} else if (y > JOY_MAX_RAW) {
+		gMode = GM_SINGLEPLAYER;
+		gui_draw_singleplayer_button(CLR_WHITE, CLR_GREEN);				// Highlight singleplayer button
+		gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+	}
+}
+
+/* -------------------------------------------------------------------------
+ *  START A NEW GAME - DRAW THE BOARD
+ * ------------------------------------------------------------------------- */
+static void handle_new_game(void) {
+	gui_draw_placement();
+	gState = GS_PLACING;
+}
 
 /* -------------------------------------------------------------------------
  *  FLEET PLACEMENT SCREEN
@@ -508,7 +552,7 @@ static void handle_over(void) {
         overButtonLatch = true;
         if (++overTapCount >= 2) {
             overTapCount = 0;
-            protocol_reset();
+            handle_reset();
         }
     }
     if (!pressed)
@@ -541,10 +585,9 @@ int main(void) {
     button_init();
     uart_init();
     stdout = &uart_stdout;   // Redirect printf to UART
-
-    /* --- Set initial game screen --- */
-    protocol_reset();        // Reset game state and draw placement UI
-
+	
+	gState = GS_RESET;		 // The initial game state is GS_RESET
+	
     /* ---------------------------------------------------------------------
      * Main game loop (runs forever)
      * --------------------------------------------------------------------- */
@@ -553,6 +596,15 @@ int main(void) {
 
         /* --- Handle game state --- */
         switch (gState) {
+			case GS_RESET:
+				handle_reset();				// Reset full protocol and board state; draw the main menu screen; update gState (to GS_MAINMENU) and default gMode (to GM_MULTIPLAYER)
+				break;
+			case GS_MAINMENU:
+				handle_main_menu();			// Allow the user to select between gModes GM_MULTIPLAYER and GM_SINGLEPLAYER; goes to GS_NEWGAME
+				break;
+			case GS_NEWGAME:
+				handle_new_game();			// Draw initial game screen; goes to GS_PLACING
+				break;
             case GS_PLACING:
                 handle_placing();
                 break;

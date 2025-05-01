@@ -125,6 +125,7 @@ uint16_t rgb(uint8_t r, uint8_t g, uint8_t b);
 // Shape drawing functions
 void drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
+void fillRectBorder(int16_t rect_x, int16_t rect_y, int16_t rect_w, int16_t rect_h, int16_t border_size, uint16_t color);
 void drawCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color);
 void fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color);
 void drawTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1,

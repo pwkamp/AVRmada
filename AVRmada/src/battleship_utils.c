@@ -254,21 +254,20 @@ void enemy_place_random(void) {
  */
 void gui_draw_main_menu(void) {
 	
-	// Black background
-	fillScreen(CLR_BLACK);
+	// Black background (main menu's background color in header file)
+	fillScreen(CLR_MM_BG);
 	
 	// Start the title text ("A Rmada" is missing its letter V!)
-	drawString(67, 15, "A Rmada", CLR_WHITE, CLR_BLACK, 5, &font5x7, 0);
-	drawString(162, 55, "ECE:3360", CLR_WHITE, CLR_BLACK, 2, &font5x7, 0);
+	drawString(67, 15, "A Rmada",   CLR_WHITE, CLR_MM_BG, 5, &font5x7, 0);
+	drawString(162, 55, "ECE:3360", CLR_WHITE, CLR_MM_BG, 2, &font5x7, 0);
 	
 	// Draw button textures
 	gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
 	gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
 	
-	// Finish the title ("AVRmada" found its letter V!)
-	for (uint8_t i=0; i<255; i+=3) {
-		drawString(93, 15, "V", rgb(i, i, i), CLR_BLACK, 5, &font5x7, 0);	// The letter "V" slowly fades into the title
-	}
+	// The letter "V" slowly fades into the title
+	gui_animate_title_letter_v();
+
 }
 
 /*
@@ -276,7 +275,7 @@ void gui_draw_main_menu(void) {
  */
 void gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color) {
 	fillRectBorder(60, 95, 200, 50, 5, border_color);
-	drawString(74, 109, "Multiplayer", text_color, CLR_BLACK, 3, &font5x7, 0);
+	drawString(74, 109, "Multiplayer", text_color, CLR_MM_BG, 3, &font5x7, 0);
 }
 
 /*
@@ -284,7 +283,18 @@ void gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color) {
  */
 void gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color) {
 	fillRectBorder(60, 168, 200, 50, 5, border_color);
-	drawString(89, 182, "Versus AI", text_color, CLR_BLACK, 3, &font5x7, 0);
+	drawString(89, 182, "Versus AI", text_color, CLR_MM_BG, 3, &font5x7, 0);
+}
+
+/*
+ * Animate the title screen's letter 'V' to fade in slowly.
+ */
+void gui_animate_title_letter_v(void) {
+	
+	for (uint8_t i=0; i<255; i+=3) {
+		drawString(93, 15, "V", rgb(i, i, i), CLR_MM_BG, 5, &font5x7, 0);		// The letter "V" slowly fades into the title
+	}
+
 }
 
 

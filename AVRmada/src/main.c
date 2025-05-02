@@ -16,6 +16,7 @@
 
 #include "gfx.h"
 #include "battleship_utils.h"
+#include "singleplayer.h"
 
 /* -------------------------------------------------------------------------
  *  GLOBAL GAME STATE
@@ -69,21 +70,6 @@ static uint16_t resendTick = 0;			// ms since last packet sent
 static uint16_t postReadyLeft = 0;		// How long to keep sending READY after sync
 
 /* -------------------------------------------------------------------------
- *  PROTOCOL TRANSMISSION HELPERS
- * ------------------------------------------------------------------------- */
-static inline void tx_ready(void) {
-	printf("READY %u\n", selfToken);
-}
-
-static inline void tx_attack(uint8_t r, uint8_t c) {
-	printf("A %u %u\n", r, c);
-}
-
-static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
-	printf("R %u %u %c\n", r, c, hit ? 'H' : 'M');
-}
-
-/* -------------------------------------------------------------------------
  *  GAME STATES
  * ------------------------------------------------------------------------- */
 
@@ -119,6 +105,36 @@ static enum {
 	NS_WAIT_RES,
 	NS_GAME_OVER
 } nState;
+
+/* -------------------------------------------------------------------------
+ *  PROTOCOL TRANSMISSION HELPERS
+ * ------------------------------------------------------------------------- */
+static inline void tx_ready(void) {
+	if (gMode == GM_SINGLEPLAYER) {
+		sp_on_tx_ready(selfToken);
+	} else {
+		 printf("READY %u\n", selfToken);
+	}
+}
+
+static inline void tx_attack(uint8_t r, uint8_t c) {
+	if (gMode == GM_SINGLEPLAYER) {
+		sp_on_tx_attack(r, c);
+	} else {
+		printf("A %u %u\n", r, c);
+	}      
+}
+
+static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
+	if (gMode == GM_SINGLEPLAYER) {
+		sp_on_tx_result(r, c, hit);
+	} else {
+		printf("R %u %u %c\n", r, c, hit ? 'H' : 'M');
+	}    
+}
+
+// Singleplayer Override
+void net_inject_line(const char *line);
 
 /* -------------------------------------------------------------------------
  *  GAME STATE HANDLERS
@@ -393,6 +409,7 @@ static void handle_settings(void) {
  *  START A NEW GAME - DRAW THE BOARD
  * ------------------------------------------------------------------------- */
 static void handle_new_game(void) {
+	if (gMode == GM_SINGLEPLAYER) sp_reset();
 	gui_draw_placement();
 	gState = GS_PLACING;
 }
@@ -624,6 +641,23 @@ static void handle_over(void) {
 }
 
 /* -------------------------------------------------------------------------
+ *  SINGLEPLAYER HELPERS
+ * ------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------
+ *  Helper for single?player mode – lets the AI push a complete line straight
+ *  into the normal RX parser (avoids touching the UART layer).
+ * ------------------------------------------------------------------------- */
+void net_inject_line(const char *line)
+{
+    /* parse_line expects a writable buffer – make a local copy */
+    char tmp[RX_MAX];
+    strncpy(tmp, line, RX_MAX - 1);
+    tmp[RX_MAX - 1] = '\0';
+    parse_line(tmp);
+}
+
+/* -------------------------------------------------------------------------
  *  MAIN FUNCTION
  * ------------------------------------------------------------------------- */
 /**
@@ -691,6 +725,9 @@ int main(void) {
 				handle_over();
 				break;
 		}
+		
+		/* Flush one queued spoofed packet (single?player only) */
+		if (gMode == GM_SINGLEPLAYER) sp_tick();
 
 		_delay_ms(1);   // Tick every 1 ms
 		systemTime++;   // Advance system time counter

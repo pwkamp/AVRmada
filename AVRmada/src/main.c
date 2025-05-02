@@ -59,14 +59,14 @@ static FILE uart_stdout = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRIT
  * ------------------------------------------------------------------------- */
 #define RX_MAX 32
 
-static char	 rxBuf[RX_MAX];		   // RX buffer
+static char	 rxBuf[RX_MAX];				// RX buffer
 static uint8_t  rxIdx = 0;				// Current RX buffer index
 
 static uint16_t selfToken = 0;			// Local token (based on finish time)
 static uint16_t peerToken = 0;			// Remote peer token
 
-static uint16_t resendTick = 0;		   // ms since last packet sent
-static uint16_t postReadyLeft = 0;		 // How long to keep sending READY after sync
+static uint16_t resendTick = 0;			// ms since last packet sent
+static uint16_t postReadyLeft = 0;		// How long to keep sending READY after sync
 
 /* -------------------------------------------------------------------------
  *  PROTOCOL TRANSMISSION HELPERS
@@ -87,14 +87,19 @@ static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
  *  GAME STATES
  * ------------------------------------------------------------------------- */
 
+// Game mode: determined by button selection in the main menu
 static enum {
+	GM_NONE,			// Default gMode is GM_NONE
 	GM_MULTIPLAYER,
-	GM_SINGLEPLAYER
+	GM_SINGLEPLAYER,
+	GM_SETTINGS_GEAR	// Hovering over setting gear in main menu
 } gMode;
 
+// Game states: initially GS_RESET and is determined throughout the game loop
 static enum {
 	GS_RESET,
 	GS_MAINMENU,
+	GS_SETTINGS,
 	GS_NEWGAME,
 	GS_PLACING,
 	GS_WAIT,
@@ -104,6 +109,7 @@ static enum {
 	GS_OVER
 } gState;
 
+// Network states
 static enum {
 	NS_IDLE,
 	NS_WAIT_READY,
@@ -119,6 +125,7 @@ static enum {
  * ------------------------------------------------------------------------- */
 static void handle_reset(void);
 static void handle_main_menu(void);
+static void handle_settings(void);
 static void handle_new_game(void);
 static void handle_placing(void);
 static void handle_wait_peer(void);
@@ -299,31 +306,87 @@ static void handle_reset(void) {
 	gui_draw_main_menu();
 
 	gState = GS_MAINMENU;
-	gMode  = GM_MULTIPLAYER;	// Default gMode is GM_MULTIPLAYER, until user selects otherwise in GS_MAINMENU
 }
 
 /* -------------------------------------------------------------------------
- *  MAIN MENU SCREEN - USER SELECTS SINGLE OR MULTIPLAYER MODE
+ *  MAIN MENU SCREEN - USER SELECTS SINGLE OR MULTIPLAYER MODE, OR SETTINGS
  * ------------------------------------------------------------------------- */
 static void handle_main_menu(void) {
 
-	/* --- If user presses the pushbutton, start a game --- */
-	if (button_is_pressed()) {
-		gState = GS_NEWGAME;
-	}
-
 	/* --- Select single/multiplayer mode with the joystick, and update button textures --- */
+	uint16_t x = adc_read(0);
 	uint16_t y = adc_read(1);
 
-	if (y < JOY_MIN_RAW) {
-		gMode = GM_MULTIPLAYER;
-		gui_draw_multiplayer_button(CLR_WHITE, CLR_CYAN);				// Highlight multiplayer button
-		gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
-	} else if (y > JOY_MAX_RAW) {
-		gMode = GM_SINGLEPLAYER;
-		gui_draw_singleplayer_button(CLR_WHITE, CLR_GREEN);				// Highlight singleplayer button
-		gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+	switch (gMode) {
+		
+		// No button currently selected
+		case GM_NONE:
+		
+			if (y < JOY_MIN_RAW) {				// Joystick up, go to multiplayer button
+				gMode = GM_MULTIPLAYER;
+				gui_draw_multiplayer_button(CLR_WHITE, CLR_CYAN);
+			} else if (y > JOY_MAX_RAW) {		// Joystick down, go to singleplayer button
+				gMode = GM_SINGLEPLAYER;
+				gui_draw_singleplayer_button(CLR_WHITE, CLR_GREEN);
+			}
+			break;
+	
+		// Multiplayer button currently selected
+		case GM_MULTIPLAYER:
+		
+			if (y > JOY_MAX_RAW) {				// Joystick down, go to singleplayer button (and fade out multiplayer button)
+				gMode = GM_SINGLEPLAYER;
+				gui_draw_singleplayer_button(CLR_WHITE, CLR_GREEN);
+				gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+			}
+			break;
+		
+		// Singleplayer button currently selected
+		case GM_SINGLEPLAYER:
+		
+			if (y < JOY_MIN_RAW) {				// Joystick up, go to multiplayer button (and fade out singleplayer button)
+				gMode = GM_MULTIPLAYER;
+				gui_draw_multiplayer_button(CLR_WHITE, CLR_CYAN);
+				gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+			}
+			else if (x > JOY_MAX_RAW) {			// Joystick right, go to settings gear icon (and fade out singleplayer button)
+				gMode = GM_SETTINGS_GEAR;
+				gui_draw_settings_gear(CLR_WHITE);
+				gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+			}
+			break;
+		
+		// Settings gear currently selected
+		case GM_SETTINGS_GEAR:
+		
+			if (x < JOY_MIN_RAW) {				// Joystick left, go to singleplayer button (and fade out settings gear)
+				gMode = GM_SINGLEPLAYER;
+				gui_draw_singleplayer_button(CLR_WHITE, CLR_GREEN);
+				gui_draw_settings_gear(CLR_LIGHT_GRAY);
+				_delay_ms(200);
+			}
+			break;
+		}
+	
+	/* --- If user presses the joystick after selecting a gamemode, start a game --- */
+	if (button_is_pressed() && (gMode == GM_MULTIPLAYER || gMode == GM_SINGLEPLAYER)) {
+		gState = GS_NEWGAME;
 	}
+	
+	/* --- If user presses the joystick after selecting the settings gear, go to settings --- */
+	else if (button_is_pressed() && (gMode == GM_SETTINGS_GEAR)) {
+		gState = GS_SETTINGS;
+	}
+
+}
+
+/* -------------------------------------------------------------------------
+ *  SETTINGS MENU SCREEN
+ * ------------------------------------------------------------------------- */
+static void handle_settings(void) {
+	fillRect(0, 0, 320, 120, CLR_GREEN);		// Just make the screen green for now and block forever
+	
+	while (1) {}
 }
 
 /* -------------------------------------------------------------------------
@@ -602,6 +665,9 @@ int main(void) {
 				break;
 			case GS_MAINMENU:
 				handle_main_menu();			// Allow the user to select between gModes GM_MULTIPLAYER and GM_SINGLEPLAYER; goes to GS_NEWGAME
+				break;
+			case GS_SETTINGS:
+				handle_settings();
 				break;
 			case GS_NEWGAME:
 				handle_new_game();			// Draw initial game screen; goes to GS_PLACING

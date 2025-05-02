@@ -135,6 +135,7 @@ void	 enemy_place_random(void);
 void	 gui_draw_main_menu(void);
 void	 gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color);
 void	 gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color);
+void     gui_draw_settings_gear(uint16_t color);
 void	 gui_animate_title_letter_v(void);
 void	 gui_draw_placement(void);
 void	 gui_draw_play_screen(void);

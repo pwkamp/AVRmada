@@ -264,6 +264,9 @@ void gui_draw_main_menu(void) {
 	// Draw button textures
 	gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
 	gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+	
+	// Draw the gear icon in the bottom-right corner
+	gui_draw_settings_gear(CLR_LIGHT_GRAY);
 
 	// The letter "V" slowly fades into the title
 	gui_animate_title_letter_v();
@@ -284,6 +287,34 @@ void gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color) {
 void gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color) {
 	fillRectBorder(60, 168, 200, 50, 5, border_color);
 	drawString(89, 182, "Versus AI", text_color, CLR_MM_BG, 3, &font5x7, 0);
+}
+
+/*
+ * Draw or redraw the gear icon on the main menu screen.
+ */
+void gui_draw_settings_gear(uint16_t color) {
+	
+	// Center of the gear
+	uint16_t x_center = 303;
+	uint16_t y_center = 223;
+	
+	// Larger circle
+	fillCircle(x_center, y_center, 8, color);
+	
+	// Bottom and top spokes; left and right spokes
+	fillRect(x_center-1, y_center-12, 3, 24, color);
+	fillRect(x_center-12, y_center-1, 24, 3, color);
+	
+	// Top-left and bottom-right spokes
+	fillTriangle(x_center-9, y_center-8, x_center+10, y_center+8, x_center+8, y_center+9, color);
+	fillTriangle(x_center-9, y_center-8, x_center+10, y_center+8, x_center-7, y_center-9, color);
+	
+	// Top-right and bottom-left spokes
+	fillTriangle(x_center+10, y_center-8, x_center-9, y_center+8, x_center-7, y_center+9, color);
+	fillTriangle(x_center+10, y_center-8, x_center-9, y_center+8, x_center+8, y_center-9, color);
+	
+	// Hollow out the middle (to the background color)
+	fillCircle(x_center, y_center, 4, CLR_MM_BG);
 }
 
 /*

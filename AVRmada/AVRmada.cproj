@@ -125,6 +125,9 @@
     <Compile Include="include\battleship_utils.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="include\buzzer.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="include\gfx.h">
       <SubType>compile</SubType>
     </Compile>
@@ -132,6 +135,9 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\battleship_utils.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\buzzer.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\gfx.c">

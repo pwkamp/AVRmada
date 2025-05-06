@@ -1,9 +1,9 @@
 /* -------------------------------------------------------------------------
  * battleship_utils.h - Header file for battleship_utils.c
  *
- * v1.1 - Refactor Directories
+ * v1.2 - Initial Sound Effects
  * Copyright (c) 2025 Peter Kamp
- * ------------------------------------------------------------------------- */
+ * --------------------------------------------------------------------------- */
 
 #ifndef BATTLESHIP_UTILS_H
 #define BATTLESHIP_UTILS_H

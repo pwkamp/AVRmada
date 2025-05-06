@@ -7,7 +7,7 @@
  * - Drawing primitives (pixels, lines, rectangles, circles, etc.)
  * - Text rendering support with customizable fonts
  *
- * v1.1 - Refactor Directories
+ * v1.2 - Initial Sound Effects
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 

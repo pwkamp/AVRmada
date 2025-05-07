@@ -16,7 +16,7 @@ static inline void clearEepromImage(void) { }
 #endif
 
 #ifdef FLASH_IMAGE
-// Single flash?resident copy of image
+// Flash resident copy of image
 const uint8_t PROGMEM imageData[IMG_BYTES] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0xA9, 0x9A,
 	0xA0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -107,7 +107,7 @@ const uint8_t PROGMEM imageData[IMG_BYTES] = {
 
 _Static_assert(sizeof(imageData) == IMG_BYTES, "Bad image size");
 
-// Copy PROGMEM ? EEPROM_IMAGE_ADDR…+IMG_BYTES-1
+// Copy PROGMEM to EEPROM_IMAGE_ADDR
 static void writeFlashToEeprom(void) {
 	for (uint16_t i = 0; i < IMG_BYTES; i++) {
 		uint8_t b = pgm_read_byte(&imageData[i]);
@@ -143,30 +143,53 @@ void initEepromImage(void) {
 }
 
 void displayImage(int16_t dstX, int16_t dstY, uint8_t scale) {
-	uint32_t pix      = 0;
+	uint32_t pix = 0;
 	const uint32_t total = (uint32_t)IMG_WIDTH * IMG_HEIGHT;
-	const uint32_t bys   = (total + 1) >> 1;
+	const uint32_t bys = (total + 1) >> 1;
+
+	// Ensure that the EEPROM address doesn't overflow
+	if (EEPROM_IMAGE_ADDR + bys > 1024) {
+		// Handle error if the image size exceeds EEPROM size
+		return;
+	}
 
 	for (uint32_t b = 0; b < bys; b++) {
 		uint8_t packed = eeprom_read_byte((uint8_t*)(EEPROM_IMAGE_ADDR + b));
+
 		// high nibble, then low nibble
 		for (int nib = 1; nib >= 0; nib--) {
 			if (pix >= total) return;
+
 			uint8_t idx = nib ? (packed >> 4) : (packed & 0x0F);
+			if (idx >= 16) {
+				// If index exceeds palette size, handle error (e.g., return or clamp)
+				return;
+			}
+
 			uint16_t col = pix % IMG_WIDTH;
 			uint16_t row = pix / IMG_WIDTH;
+
+			// Ensure that the display area is within bounds
+			if (dstX + col * scale >= 320 || dstY + row * scale >= 240) {
+				// Handle the out-of-bounds error
+				return;
+			}
+
 			uint16_t c16 = rgb(
 			palette[idx][0],
 			palette[idx][1],
 			palette[idx][2]
 			);
+
 			fillRect(
-			dstX + col*scale,
-			dstY + row*scale,
+			dstX + col * scale,
+			dstY + row * scale,
 			scale, scale,
 			c16
 			);
+
 			pix++;
 		}
 	}
 }
+

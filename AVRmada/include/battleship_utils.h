@@ -90,10 +90,10 @@ extern const uint8_t SHIP_LENGTHS[NUM_SHIPS];
  *  Each of these arrays is BITMAP_SIZE bytes; each bit represents one cell
  *  in row-major order (bit 0 = row 0,col 0; bit 1 = row 0,col 1; … bit 99 = row 9,col 9).
  * ------------------------------------------------------------------------- */
-extern uint8_t playerOccupiedBitmap	  [BITMAP_SIZE];
-extern uint8_t playerAttackedAtBitmap	  [BITMAP_SIZE];
-extern uint8_t enemyConfirmedHitBitmap[BITMAP_SIZE];
-extern uint8_t enemyAttackedAtBitmap	  [BITMAP_SIZE];
+extern uint8_t playerOccupiedBitmap		[BITMAP_SIZE];
+extern uint8_t playerAttackedAtBitmap	[BITMAP_SIZE];
+extern uint8_t enemyConfirmedHitBitmap	[BITMAP_SIZE];
+extern uint8_t enemyAttackedAtBitmap	[BITMAP_SIZE];
 
 /* -------------------------------------------------------------------------
  *  Internal bit-manipulation helpers (static inline)
@@ -238,6 +238,8 @@ void	 gui_draw_settings_screen(const bool *sounds, const AIDifficulty *difficult
 void	 gui_draw_sound_toggle_button(uint16_t text_color, uint16_t border_color, const bool *sound);
 void	 gui_draw_difficulty_button(uint16_t text_color, uint16_t border_color, const AIDifficulty *difficulty);
 void	 gui_draw_settings_back(uint16_t color);
+void	 gui_draw_lose_screen();
+void	 gui_draw_win_screen();
 
 /* UART communication helpers */
 void	 uart_init(void);

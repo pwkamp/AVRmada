@@ -23,11 +23,8 @@
 /* -------------------------------------------------------------------------
  *  GAME SETTINGS
  * ------------------------------------------------------------------------- */
-bool soundsEnabled	 = true;
+bool soundsEnabled		  = true;
 AIDifficulty aiDifficulty = AI_MEDIUM;
-
-// FOR TESTING ONLY
-bool drawImageTest = true;
 
 /* -------------------------------------------------------------------------
  *  GLOBAL GAME STATE
@@ -37,23 +34,23 @@ Ship   playerFleet[NUM_SHIPS];
 uint8_t lastEnemyRow = 0;
 uint8_t lastEnemyCol = 0;
 
-uint8_t selRow, selCol;					// Current selection cursor
-uint8_t ghostShipIdx;					// Ship being placed
-bool	ghostHorizontal;				// Ship placement orientation
+uint8_t selRow, selCol;						// Current selection cursor
+uint8_t ghostShipIdx;						// Ship being placed
+bool	ghostHorizontal;					// Ship placement orientation (horizontal/vertical)
 uint8_t playerRemaining, enemyRemaining;
 
-static int8_t pendingRow = -1;			// Row of pending outgoing shot
-static int8_t pendingCol = -1;			// Col of pending outgoing shot
+static int8_t pendingRow = -1;				// Row of pending outgoing shot
+static int8_t pendingCol = -1;				// Col of pending outgoing shot
 
 /* -------------------------------------------------------------------------
  *  LOCAL STATE
  * ------------------------------------------------------------------------- */
-static uint32_t systemTime	  = 0;		// System milliseconds ticker
-static uint32_t nextMoveAllowed = 0;	// Joystick move repeat throttle
+static uint32_t systemTime	    = 0;		// System milliseconds ticker
+static uint32_t nextMoveAllowed = 0;		// Joystick move repeat throttle
 
-static bool	buttonLatch	 = false;		// Prevent multiple button presses
-static bool	overButtonLatch = false;
-static uint8_t overTapCount	= 0;
+static bool	buttonLatch			= false;	// Prevent multiple button presses
+static bool	overButtonLatch		= false;
+static uint8_t overTapCount		= 0;
 
 /* -------------------------------------------------------------------------
  *  UART (printf redirected)
@@ -66,13 +63,13 @@ static FILE uart_stdout = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRIT
 #define RX_MAX 32
 
 static char	rxBuf[RX_MAX];			// RX buffer
-static uint8_t rxIdx = 0;			// Current RX buffer index
+static uint8_t rxIdx          = 0;	// Current RX buffer index
 
-static uint16_t selfToken	= 0;	// Local token (based on finish time)
-static uint16_t peerToken	= 0;	// Remote peer token
+static uint16_t selfToken	  = 0;	// Local token (based on finish time)
+static uint16_t peerToken	  = 0;	// Remote peer token
 
-static uint16_t resendTick   = 0;	// ms since last packet sent
-static uint16_t postReadyLeft= 0;	// How long to keep sending READY after sync
+static uint16_t resendTick    = 0;	// ms since last packet sent
+static uint16_t postReadyLeft = 0;	// How long to keep sending READY after sync
 
 /* -------------------------------------------------------------------------
  *  GAME STATES
@@ -187,6 +184,7 @@ static void on_attack(uint8_t r, uint8_t c) {
 			nState = NS_GAME_OVER;
 			gState = GS_OVER;
 			status_msg("You lose ? tap twice");
+			gui_draw_lose_screen();
 			play_lose_sound(&soundsEnabled);
 		} else {
 			// Otherwise, send result and hand turn to you
@@ -233,6 +231,7 @@ static void on_result(uint8_t r, uint8_t c, bool hit) {
 		nState = NS_GAME_OVER;
 		gState = GS_OVER;
 		status_msg("You win! ? tap twice");
+		gui_draw_win_screen();
 		play_win_sound(&soundsEnabled);
 	} else {
 		nState = NS_PEER_TURN;
@@ -319,14 +318,12 @@ void handle_reset(void) {
 	ghostShipIdx	= 0;
 	ghostHorizontal = true;
 	selRow = selCol = GRID_ROWS / 2;
-	nState		  = NS_IDLE;
-	peerToken	   = 0;
-	resendTick	  = 0;
+	nState		    = NS_IDLE;
+	peerToken	    = 0;
+	resendTick	    = 0;
 	postReadyLeft   = 0;
 
 	gui_draw_main_menu();
-
-	if (drawImageTest) displayImage(50, 20, 5);
 
 	gState = GS_MAINMENU;
 	sState = SETTINGS_NONE;

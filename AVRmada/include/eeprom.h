@@ -12,7 +12,7 @@
 #define EEPROM_IMAGE_ADDR  ((uint16_t)0x0000)      // EEPROM base address
 
 // Populate (and/or clear) the EEPROM image region.
-// - If FLASH_IMAGE is defined, this copies the PROGMEM image ? EEPROM.
+// - If FLASH_IMAGE is defined, this copies the PROGMEM image to EEPROM.
 // - If CLEAR_EEPROM is defined, this first zeroes out IMG_BYTES bytes.
 void initEepromImage(void);
 

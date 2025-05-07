@@ -15,14 +15,24 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <avr/pgmspace.h>
 
 #include "gfx.h"
+#include "eeprom.h"
 #include "battleship_utils.h"
 
 /* -------------------------------------------------------------------------
  *  CONSTANTS
  * ------------------------------------------------------------------------- */
 const uint8_t SHIP_LENGTHS[NUM_SHIPS] = {5, 4, 3, 3, 2};
+	
+char buffer[20];	//Holds string constants at runtime
+
+const char m1[] PROGMEM = "This is NOT This!";
+const char m2[] PROGMEM = "NOT Very Good,";
+const char m3[] PROGMEM = "You Lose!";
+const char m4[] PROGMEM = "Press 2x";
+const char m5[] PROGMEM = "To Continue!";
 
 /* -------------------------------------------------------------------------
  *  BOARD BITMAPS
@@ -177,10 +187,10 @@ void status_msg(const char *msg) {
  * Reset both player and enemy grids to empty.
  */
 void board_reset(void) {
-	memset(playerOccupiedBitmap, 0, BITMAP_SIZE);
+	memset(playerOccupiedBitmap,     0, BITMAP_SIZE);
 	memset(playerAttackedAtBitmap,   0, BITMAP_SIZE);
 	memset(enemyConfirmedHitBitmap,  0, BITMAP_SIZE);
-	memset(enemyAttackedAtBitmap,	0, BITMAP_SIZE);
+	memset(enemyAttackedAtBitmap,	 0, BITMAP_SIZE);
 	playerRemaining = 0;
 	enemyRemaining  = 0;
 }
@@ -471,6 +481,33 @@ void gui_draw_play_screen(void) {
 	header_play();
 	status_msg("Your Turn");
 	// draw_cursor(lastEnemyRow, lastEnemyCol, ENEMY_GRID_X_PX);
+}
+
+void gui_draw_lose_screen() {
+	fillScreen(CLR_BLACK);
+	displayImage(140, 60, 4);
+	
+	strcpy_P(buffer, m1);
+	drawString(7, 20, buffer, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
+	strcpy_P(buffer, m2);
+	drawString(7, 50, buffer, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
+	strcpy_P(buffer, m3);
+	drawString(7, 80, buffer, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
+	strcpy_P(buffer, m4);
+	drawString(7, 150, buffer, CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
+	strcpy_P(buffer, m5);
+	drawString(7, 180, buffer, CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
+}
+
+void gui_draw_win_screen() {
+	fillScreen(CLR_BLACK);
+	displayImage(140, 60, 4);
+	/*
+	drawString(7, 20, "This is This!", CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
+	drawString(7, 50, "Very Good,", CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
+	drawString(7, 80, "You Win!", CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
+	drawString(7, 150, "Press 2x", CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
+	drawString(7, 180, "To Continue", CLR_WHITE, CLR_BLACK, 3, &font5x7, 0); */
 }
 
 /* -------------------------------------------------------------------------

@@ -25,10 +25,10 @@ const uint8_t SHIP_LENGTHS[NUM_SHIPS] = {5, 4, 3, 3, 2};
 /* -------------------------------------------------------------------------
  *  BOARD BITMAPS
  * ------------------------------------------------------------------------- */
-uint8_t playerOccupiedBitmap[BITMAP_SIZE];		// Where all of the player's ships actually are, set from the start of the game
-uint8_t playerAttackBitmap  [BITMAP_SIZE];		// All of the squares the player has attacked, up to now	
-uint8_t enemyConfirmedHitBitmap [BITMAP_SIZE];	// All of the *confirmed* enemy ship squares that have been hit, up to now
-uint8_t enemyAttackBitmap   [BITMAP_SIZE];		// All of the squares the enemy has attacked, up to now	
+uint8_t playerOccupiedBitmap   [BITMAP_SIZE];		// Where all of the player's ships actually are, set from the start of the game
+uint8_t playerAttackedAtBitmap [BITMAP_SIZE];		// All of the squares the player has been attacked at, up to now	
+uint8_t enemyConfirmedHitBitmap[BITMAP_SIZE];		// All of the *confirmed* enemy ship squares that have been hit, up to now
+uint8_t enemyAttackedAtBitmap  [BITMAP_SIZE];		// All of the squares the enemy player has been attacked at, up to now	
 
 /* -------------------------------------------------------------------------
  *  PSEUDO-RANDOM GENERATOR (16-bit LFSR)
@@ -57,6 +57,20 @@ uint16_t rand16(void) {
 uint16_t rand_int(uint16_t min, uint16_t max) {
 	uint32_t range = (uint32_t)max - (uint32_t)min + 1;
 	return (uint16_t)(rand16() % range + min);
+}
+
+/**
+ * Generate a pseudo-random float between min and max (inclusive).
+ */
+float rand_float(float min, float max) {
+		return min + ((float)rand16() / 65535.0f) * (max - min);
+}
+
+/**
+ * Returns true randomly, `probability` (from 0.0 to 1.0) of the time, else false
+ */
+float rand_true(float probability) {
+	return (rand_float(0.0, 1.0) <= probability);
 }
 
 /* -------------------------------------------------------------------------
@@ -162,9 +176,9 @@ void status_msg(const char *msg) {
  */
 void board_reset(void) {
 	memset(playerOccupiedBitmap, 0, BITMAP_SIZE);
-	memset(playerAttackBitmap,   0, BITMAP_SIZE);
+	memset(playerAttackedAtBitmap,   0, BITMAP_SIZE);
 	memset(enemyConfirmedHitBitmap,  0, BITMAP_SIZE);
-	memset(enemyAttackBitmap,	0, BITMAP_SIZE);
+	memset(enemyAttackedAtBitmap,	0, BITMAP_SIZE);
 	playerRemaining = 0;
 	enemyRemaining  = 0;
 }
@@ -438,12 +452,12 @@ void gui_draw_play_screen(void) {
 			/* --- Player board --- */
 			uint16_t pcol = BITMAP_GET(playerOccupiedBitmap, r, c)
 						  ? CLR_SHIP : CLR_CYAN;
-			if (BITMAP_GET(playerAttackBitmap, r, c))
+			if (BITMAP_GET(playerAttackedAtBitmap, r, c))
 				pcol = BITMAP_GET(playerOccupiedBitmap, r, c) ? CLR_HIT : CLR_MISS;
 			draw_cell(r, c, pcol, PLAYER_GRID_X_PX);
 
 			/* --- Enemy board --- */
-			uint16_t ecol = !BITMAP_GET(enemyAttackBitmap, r, c)
+			uint16_t ecol = !BITMAP_GET(enemyAttackedAtBitmap, r, c)
 							? CLR_NAVY
 							: (BITMAP_GET(enemyConfirmedHitBitmap, r, c)
 							? CLR_HIT : CLR_MISS);

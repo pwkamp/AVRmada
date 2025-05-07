@@ -166,8 +166,8 @@ static void on_attack(uint8_t r, uint8_t c) {
 		return; // Ignore invalid coordinates
 
 	// Was this cell already attacked?
-	bool first_time = !BITMAP_GET(playerAttackBitmap, r, c);
-	BITMAP_SET(playerAttackBitmap, r, c);
+	bool first_time = !BITMAP_GET(playerAttackedAtBitmap, r, c);
+	BITMAP_SET(playerAttackedAtBitmap, r, c);
 
 	bool hit = BITMAP_GET(playerOccupiedBitmap, r, c);
 
@@ -180,14 +180,14 @@ static void on_attack(uint8_t r, uint8_t c) {
 			tx_result(r, c, hit);
 			nState = NS_GAME_OVER;
 			gState = GS_OVER;
-			//status_msg("You lose ? tap twice");
+			status_msg("You lose ? tap twice");
 			play_lose_sound(&soundsEnabled);
 		} else {
 			// Otherwise, send result and hand turn to you
 			tx_result(r, c, hit);
 			nState = NS_MY_TURN;
 			gState = GS_MYTURN;
-			//status_msg("Your turn");
+			status_msg("Your turn");
 			nextMoveAllowed = systemTime;
 			gui_draw_play_screen();
 			draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
@@ -226,12 +226,12 @@ static void on_result(uint8_t r, uint8_t c, bool hit) {
 	if (hit && --enemyRemaining == 0) {
 		nState = NS_GAME_OVER;
 		gState = GS_OVER;
-		//status_msg("You win! ? tap twice");
+		status_msg("You win! ? tap twice");
 		play_win_sound(&soundsEnabled);
 	} else {
 		nState = NS_PEER_TURN;
 		gState = GS_ENEMYTURN;
-		//status_msg("Enemy turn");
+		status_msg("Enemy turn");
 	}
 }
 
@@ -294,7 +294,7 @@ static void net_tick(void) {
 	/* --- Peer timeout while waiting for their move --- */
 	if (nState == NS_PEER_TURN) {
 		if (++resendTick >= 120000) { // 2 minutes timeout
-			//status_msg("Peer lost ? reset");
+			status_msg("Peer lost ? reset");
 			_delay_ms(2000);
 			handle_reset();
 		}
@@ -494,7 +494,7 @@ static void handle_placing(void) {
 	if (showInvalid) {
 		if (systemTime - invalidTimer >= 500) {
 			showInvalid = false;
-			//status_msg("Use stick to place");
+			status_msg("Use stick to place");
 		} else {
 			return;
 		}
@@ -571,13 +571,13 @@ static void handle_placing(void) {
 					resendTick = 0;
 					peerToken = 0;
 					postReadyLeft = 0;
-					//status_msg("Searching peer...");
+					status_msg("Searching peer...");
 				}
 			} else {
 				// Immediately update ghost for next ship to prevent stale display
 				ghost_update(selRow, selCol, ghostHorizontal, true);
 				// Invalid placement (overlapping/invalid)
-				//status_msg("Invalid placement!");
+				status_msg("Invalid placement!");
 				showInvalid = true;
 				invalidTimer = systemTime;
 			}
@@ -624,7 +624,7 @@ static void handle_wait_peer(void) {
 
 		gui_draw_play_screen();
 		draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
-		//status_msg(iStart ? "Your turn" : "Enemy turn");
+		status_msg(iStart ? "Your turn" : "Enemy turn");
 	}
 }
 
@@ -649,7 +649,7 @@ static void handle_my_turn(void) {
 
 		if (moved) {
 			// Redraw previous cell background
-			bool oldAtt = BITMAP_GET(enemyAttackBitmap, oldR, oldC);
+			bool oldAtt = BITMAP_GET(enemyAttackedAtBitmap, oldR, oldC);
 			bool oldOcc = BITMAP_GET(enemyConfirmedHitBitmap, oldR, oldC);
 			uint16_t bg = oldAtt ? (oldOcc ? CLR_HIT : CLR_MISS) : CLR_NAVY;
 			draw_cell(oldR, oldC, bg, ENEMY_GRID_X_PX);
@@ -666,9 +666,9 @@ static void handle_my_turn(void) {
 	if (pressed && !buttonLatch) {
 		buttonLatch = true;
 
-		if (!BITMAP_GET(enemyAttackBitmap, selRow, selCol)) {
+		if (!BITMAP_GET(enemyAttackedAtBitmap, selRow, selCol)) {
 			// Fire at unshot square
-			BITMAP_SET(enemyAttackBitmap, selRow, selCol);
+			BITMAP_SET(enemyAttackedAtBitmap, selRow, selCol);
 
 			draw_cell(selRow, selCol, CLR_PENDING, ENEMY_GRID_X_PX); // Pending color
 			pendingRow = selRow;
@@ -679,7 +679,7 @@ static void handle_my_turn(void) {
 
 			nState = NS_WAIT_RES;
 			gState = GS_WAITRES;
-			//status_msg("Waiting for result...");
+			status_msg("Waiting for result...");
 		}
 	}
 	if (!pressed) buttonLatch = false;

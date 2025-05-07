@@ -5,10 +5,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/*  Reset any internal state before every new single?player game */
+/* The AI's board */
+uint8_t	aiOccupiedBitmap[BITMAP_SIZE];
+
+/*  Reset any internal state before every new singleplayer game */
 void sp_reset(void);
 
 void sp_tick(void);
+
+/* Fill the AI board with ships using RNG */
+void ai_place_random(void);
 
 /*  Called from main.c instead of sending real UART traffic */
 void sp_on_tx_ready(uint16_t self_token);

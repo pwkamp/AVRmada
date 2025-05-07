@@ -23,6 +23,7 @@
  *  GAME SETTINGS
  * ------------------------------------------------------------------------- */
 bool soundsEnabled	 = true;
+AIDifficulty aiDifficulty = AI_MEDIUM;
 
 /* -------------------------------------------------------------------------
  *  GLOBAL GAME STATE
@@ -81,6 +82,14 @@ static enum {
 	GM_SINGLEPLAYER,
 	GM_SETTINGS_GEAR	// Hovering over setting gear in main menu
 } gMode;
+
+// Settings state: determined by button selection on the Settings screen
+static enum {
+	SETTINGS_NONE,			// Default sState is SETTINGS_NONE
+	SETTINGS_SOUNDS,
+	SETTINGS_DIFFICULTY,
+	SETTINGS_BACK	// Hovering over back button on Settings screen
+} sState;
 
 // Game states: initially GS_RESET and is determined throughout the game loop
 static enum {
@@ -287,7 +296,7 @@ static void net_tick(void) {
 	if (nState == NS_PEER_TURN) {
 		if (++resendTick >= 120000) { // 2 minutes timeout
 			status_msg("Peer lost ? reset");
-			_delay_ms(000);
+			_delay_ms(2000);
 			handle_reset();
 		}
 	}
@@ -314,6 +323,8 @@ void handle_reset(void) {
 	gui_draw_main_menu();
 
 	gState = GS_MAINMENU;
+	sState = SETTINGS_NONE;
+	gMode = GM_NONE;
 }
 
 /* -------------------------------------------------------------------------
@@ -376,6 +387,7 @@ static void handle_main_menu(void) {
 	}
 	/* --- If user presses the joystick after selecting the settings gear, go to settings --- */
 	else if (button_is_pressed() && (gMode == GM_SETTINGS_GEAR)) {
+		gui_draw_settings_screen(&soundsEnabled, &aiDifficulty);
 		gState = GS_SETTINGS;
 	}
 }
@@ -384,9 +396,84 @@ static void handle_main_menu(void) {
  *  SETTINGS MENU SCREEN
  * ------------------------------------------------------------------------- */
 static void handle_settings(void) {
-	fillRect(0, 0, 320, 120, CLR_GREEN);		// Just make the screen green for now and block forever
+	/* --- Select settings to change with the joystick, and update button textures --- */
+	uint16_t x = adc_read(0);
+	uint16_t y = adc_read(1);
 
-	while (1) {}
+	switch (sState) {
+
+		// No button currently selected
+		case SETTINGS_NONE:
+
+		if (y < JOY_MIN_RAW) {				// Joystick up, go to sound toggle button
+			sState = SETTINGS_SOUNDS;
+			gui_draw_sound_toggle_button(CLR_WHITE, CLR_CYAN, &soundsEnabled);
+			} else if (y > JOY_MAX_RAW) {		// Joystick down, go to Difficulty selector button
+			sState = SETTINGS_DIFFICULTY;
+			gui_draw_difficulty_button(CLR_WHITE, CLR_ORANGE, &aiDifficulty);
+		}
+		break;
+
+		// Sounds button currently selected
+		case SETTINGS_SOUNDS:
+
+		if (y > JOY_MAX_RAW) {				// Joystick down, go to Difficulty selector button (and fade out sounds button)
+			sState = SETTINGS_DIFFICULTY;
+			gui_draw_sound_toggle_button(CLR_NONE, CLR_DARK_GRAY, &soundsEnabled);
+			gui_draw_difficulty_button(CLR_WHITE, CLR_ORANGE, &aiDifficulty);
+		}
+		break;
+
+		// Difficulty button currently selected
+		case SETTINGS_DIFFICULTY:
+
+		if (y < JOY_MIN_RAW) {				// Joystick up, go to sounds button (and fade out difficulty button)
+			sState = SETTINGS_SOUNDS;
+			gui_draw_difficulty_button(CLR_NONE, CLR_DARK_GRAY, &aiDifficulty);
+			gui_draw_sound_toggle_button(CLR_WHITE, CLR_CYAN, &soundsEnabled);
+		}
+		else if (x < JOY_MIN_RAW) {			// Joystick left, go to back button (and fade out difficulty button)
+			sState = SETTINGS_BACK;
+			gui_draw_settings_back(CLR_WHITE);
+			gui_draw_difficulty_button(CLR_NONE, CLR_DARK_GRAY, &aiDifficulty);
+		}
+		break;
+
+		// Back button currently selected
+		case SETTINGS_BACK:
+
+		if (x > JOY_MAX_RAW) {				// Joystick right, go to difficulty button (and fade out settings back)
+			sState = SETTINGS_DIFFICULTY;
+			gui_draw_difficulty_button(CLR_WHITE, CLR_ORANGE, &aiDifficulty);
+			gui_draw_settings_back(CLR_LIGHT_GRAY);
+			_delay_ms(200);
+		}
+		break;
+	}
+
+	/* --- If user presses the joystick after on sound button, toggle sounds enabled --- */
+	if (button_is_pressed() && (sState == SETTINGS_SOUNDS) && !buttonLatch) {
+		buttonLatch = true;
+		soundsEnabled = !soundsEnabled;
+		gui_draw_sound_toggle_button(CLR_WHITE, CLR_CYAN, &soundsEnabled);
+	}
+
+	/* --- If user presses the joystick on difficulty button, increment AI difficulty --- */
+	if (button_is_pressed() && (sState == SETTINGS_DIFFICULTY) && !buttonLatch) {
+		buttonLatch = true;
+		// advance through AI_EASY -> AI_MEDIUM -> AI_HARD -> back to AI_EASY
+		aiDifficulty = (AIDifficulty)((aiDifficulty + 1) % 3);
+		// redraw the button to show the new label/color
+		gui_draw_difficulty_button(CLR_WHITE, CLR_ORANGE, &aiDifficulty);
+	}
+
+	/* --- If user presses the joystick after selecting the back button, go to Main Menu --- */
+	else if (button_is_pressed() && (sState == SETTINGS_BACK) && !buttonLatch) {
+		buttonLatch = true;
+		handle_reset();
+	}
+
+	if (!button_is_pressed()) buttonLatch = false;
 }
 
 /* -------------------------------------------------------------------------

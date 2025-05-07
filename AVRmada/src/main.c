@@ -18,12 +18,16 @@
 #include "battleship_utils.h"
 #include "buzzer.h"
 #include "singleplayer.h"
+#include "eeprom.h"
 
 /* -------------------------------------------------------------------------
  *  GAME SETTINGS
  * ------------------------------------------------------------------------- */
 bool soundsEnabled	 = true;
 AIDifficulty aiDifficulty = AI_MEDIUM;
+
+// FOR TESTING ONLY
+bool drawImageTest = true;
 
 /* -------------------------------------------------------------------------
  *  GLOBAL GAME STATE
@@ -114,6 +118,8 @@ static enum {
 	NS_WAIT_RES,
 	NS_GAME_OVER
 } nState;
+
+void handle_reset(void);
 
 /* -------------------------------------------------------------------------
  *  PROTOCOL TRANSMISSION HELPERS
@@ -308,7 +314,6 @@ static void net_tick(void) {
 /* -------------------------------------------------------------------------
  *  RESET PROTOCOL & DRAW INITIAL MAIN MENU SCREEN
  * ------------------------------------------------------------------------- */
-
 void handle_reset(void) {
 	board_reset();
 	ghostShipIdx	= 0;
@@ -320,6 +325,8 @@ void handle_reset(void) {
 	postReadyLeft   = 0;
 
 	gui_draw_main_menu();
+
+	if (drawImageTest) displayImage(50, 20, 5);
 
 	gState = GS_MAINMENU;
 	sState = SETTINGS_NONE;
@@ -747,6 +754,8 @@ int main(void) {
 	button_init();
 	uart_init();
 	stdout = &uart_stdout;					// Redirect printf to UART
+
+	initEepromImage();
 
 	srand16(adc_read(3) * adc_read(4));		// Initialize the RNG for `singleplayer.c` (with unused inputs)
 

@@ -8,12 +8,12 @@
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 
+#ifndef BUZZER_H
+#define BUZZER_H
+
 #ifndef F_CPU
 #define F_CPU 16000000UL
 #endif
-
-#ifndef BUZZER_H
-#define BUZZER_H
 
 #include <stdint.h>
 #include <stdbool.h>

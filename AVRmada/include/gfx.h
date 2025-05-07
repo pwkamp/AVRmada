@@ -13,6 +13,10 @@
 #ifndef GFX_H
 #define GFX_H
 
+#ifndef F_CPU
+#define F_CPU 16000000UL
+#endif
+
 #include <stdint.h>	  // Standard integer types
 #include <avr/io.h>	  // AVR hardware IO definitions
 #include <util/delay.h>  // Delay functions

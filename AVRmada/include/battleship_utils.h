@@ -38,12 +38,16 @@
 /* -------------------------------------------------------------------------
  *  Color definitions (RGB565 via gfx.h)
  * ------------------------------------------------------------------------- */
+#define CLR_NONE			rgb(1,2,3)
 #define CLR_MM_BG			rgb(0,0,0)
 #define CLR_BLACK			rgb(0,0,0)
 #define CLR_WHITE			rgb(255,255,255)
 #define CLR_DARK_GRAY		rgb(64,64,64)
 #define CLR_LIGHT_GRAY		rgb(128,128,128)
 #define CLR_GREEN			rgb(0,255,0)
+#define CLR_RED				rgb(255,0,0)
+#define CLR_YELLOW			rgb(255,255,0)
+#define CLR_ORANGE			rgb(255,128,0)
 #define CLR_CYAN			rgb(0,255,255)
 #define CLR_NAVY			rgb(0,0,128)
 #define CLR_SHIP			rgb(64,64,64)
@@ -62,6 +66,17 @@
 #define JOY_MIN_RAW			(JOY_CENTER_RAW - JOY_DEADZONE_RAW)
 #define JOY_MAX_RAW			(JOY_CENTER_RAW + JOY_DEADZONE_RAW)
 #define JOY_REPEAT_DELAY_MS 150
+
+/* -------------------------------------------------------------------------
+ *  AI definitions
+ * ------------------------------------------------------------------------- */
+typedef enum {
+	AI_EASY,
+	AI_MEDIUM,
+	AI_HARD
+} AIDifficulty;
+
+extern AIDifficulty aiDifficulty;
 
 /* -------------------------------------------------------------------------
  *  Ship constants
@@ -205,18 +220,22 @@ void	player_place_current_ship(uint8_t row, uint8_t col, bool horizontal, uint8_
 void	enemy_place_random(void);
 
 /* GUI screen builders */
-void	gui_draw_main_menu(void);
-void	gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color);
-void	gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color);
-void	gui_draw_settings_gear(uint16_t color);
-void	gui_animate_title_letter_v(void);
-void	gui_draw_placement(void);
-void	gui_draw_play_screen(void);
+void	 gui_draw_main_menu(void);
+void	 gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color);
+void	 gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color);
+void     gui_draw_settings_gear(uint16_t color);
+void	 gui_animate_title_letter_v(void);
+void	 gui_draw_placement(void);
+void	 gui_draw_play_screen(void);
+void	 gui_draw_settings_screen(const bool *sounds, const AIDifficulty *difficulty);
+void	 gui_draw_sound_toggle_button(uint16_t text_color, uint16_t border_color, const bool *sound);
+void	 gui_draw_difficulty_button(uint16_t text_color, uint16_t border_color, const AIDifficulty *difficulty);
+void	 gui_draw_settings_back(uint16_t color);
 
-/* UART (printf redirection) */
-void	uart_init(void);
-int		uart_putchar(char c, FILE *stream);
-uint8_t uart_char_available(void);
-char	uart_getchar(void);
+/* UART communication helpers */
+void	 uart_init(void);
+int		 uart_putchar(char c, FILE *stream);
+uint8_t  uart_char_available(void);
+char	 uart_getchar(void);
 
 #endif /* BATTLESHIP_UTILS_H */

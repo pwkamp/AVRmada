@@ -267,6 +267,8 @@ void gui_draw_main_menu(void) {
 	// Buttons & gear
 	gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
 	gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
+
+	// Draw the gear icon in the bottom-right corner
 	gui_draw_settings_gear(CLR_LIGHT_GRAY);
 
 	// Animate 'V'
@@ -324,6 +326,93 @@ void gui_animate_title_letter_v(void) {
 	for (uint8_t i = 0; i < 255; i += 3) {
 		drawString(93, 15, "V", rgb(i, i, i), CLR_MM_BG, 5, &font5x7, 0);
 	}
+}
+
+// Settings Menu
+
+/*
+ * Draw the Settings screen.
+ */
+void gui_draw_settings_screen(const bool *sounds, const AIDifficulty *difficulty) {
+
+	// Black background (main menu's background color in header file)
+	fillScreen(CLR_MM_BG);
+
+	// Start the title text "Settings"
+	drawString(59, 28, "Settings",   CLR_WHITE, CLR_MM_BG, 5, &font5x7, 0);
+
+	// Draw button textures
+	gui_draw_sound_toggle_button(CLR_NONE, CLR_DARK_GRAY, sounds);
+	gui_draw_difficulty_button(CLR_NONE, CLR_DARK_GRAY, difficulty);
+	gui_draw_settings_back(CLR_LIGHT_GRAY);
+
+}
+
+/*
+ * Draw or redraw the sound toggle button on the main menu screen.
+ */
+void gui_draw_sound_toggle_button(uint16_t text_color, uint16_t border_color, const bool *sound) {
+	fillRectBorder(60, 95, 200, 50, 5, border_color);
+	if (sound && *sound) {
+		if (text_color != CLR_NONE) drawString(74, 109, "Sounds: On ", text_color, CLR_MM_BG, 3, &font5x7, 0);
+		drawString(74, 109, "Sounds: On ", CLR_GREEN, CLR_MM_BG, 3, &font5x7, 0);
+	} else {
+		if (text_color != CLR_NONE) drawString(74, 109, "Sounds: Off", text_color, CLR_MM_BG, 3, &font5x7, 0);
+		drawString(74, 109, "Sounds: Off", CLR_RED, CLR_MM_BG, 3, &font5x7, 0);
+	}
+
+}
+
+/*
+ * Draw or redraw the difficulty button on the settings screen.
+ */
+void gui_draw_difficulty_button(uint16_t text_color, uint16_t border_color, const AIDifficulty *difficulty) {
+	fillRectBorder(60, 168, 200, 50, 5, border_color);
+	if (difficulty) {
+		switch (*difficulty) {
+			case AI_EASY:
+				if (text_color != CLR_NONE) {
+					drawString(74, 182, "AI:", text_color, CLR_MM_BG, 3, &font5x7, 0);
+					drawString(132, 185, "Lieutenant", text_color, CLR_MM_BG, 2, &font5x7, 0);
+				}
+				drawString(74, 182, "AI:", CLR_GREEN, CLR_MM_BG, 3, &font5x7, 0);
+				drawString(132, 185, "Lieutenant", CLR_GREEN, CLR_MM_BG, 2, &font5x7, 0);
+				break;
+			case AI_MEDIUM:
+				if (text_color != CLR_NONE) {
+					drawString(74, 182, "AI:", text_color, CLR_MM_BG, 3, &font5x7, 0);
+					drawString(132, 185, "Captain   ", text_color, CLR_MM_BG, 2, &font5x7, 0);
+				}
+				drawString(74, 182, "AI:", CLR_YELLOW, CLR_MM_BG, 3, &font5x7, 0);
+				drawString(132, 185, "Captain   ", CLR_YELLOW, CLR_MM_BG, 2, &font5x7, 0);
+				break;
+			case AI_HARD:
+				if (text_color != CLR_NONE) {
+					drawString(74, 182, "AI:", text_color, CLR_MM_BG, 3, &font5x7, 0);
+					drawString(132, 185, "Admiral   ", text_color, CLR_MM_BG, 2, &font5x7, 0);
+				}
+				drawString(74, 182, "AI:", CLR_RED, CLR_MM_BG, 3, &font5x7, 0);
+				drawString(132, 185, "Admiral   ", CLR_RED, CLR_MM_BG, 2, &font5x7, 0);
+				break;
+		}
+	}
+}
+
+/*
+ * Draw or redraw the back icon on the settings screen.
+ */
+void gui_draw_settings_back(uint16_t color) {
+
+	// Center of the gear
+	uint16_t x_center = 17;
+	uint16_t y_center = 223;
+
+	// Bottom and top spokes; left and right spokes
+	fillRect(x_center, y_center-6, 8, 12, color);
+
+	// Top-left and bottom-right spokes
+	fillTriangle(x_center-10, y_center, x_center, y_center+10, x_center, y_center-10, color);
+	//fillTriangle(x_center-9, y_center-8, x_center+10, y_center+8, x_center-7, y_center-9, color);
 }
 
 /**

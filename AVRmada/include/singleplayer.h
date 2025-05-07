@@ -2,6 +2,11 @@
 #define SINGLEPLAYER_H
 
 #include "battleship_utils.h"
+
+#ifndef F_CPU
+#define F_CPU		16000000UL
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 

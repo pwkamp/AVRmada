@@ -2,7 +2,7 @@
  * battleship_utils.c
  * Helper and hardware abstraction layer routines for Battleship
  *
- * v1.1 - Refactor Directories
+ * v2.0 - Bitmap Board representation for SRAM Optimization
  * Copyright (c) 2025 Peter Kamp
  * ------------------------------------------------------------------------- */
 
@@ -21,6 +21,14 @@
  *  CONSTANTS
  * ------------------------------------------------------------------------- */
 const uint8_t SHIP_LENGTHS[NUM_SHIPS] = {5, 4, 3, 3, 2};
+
+/* -------------------------------------------------------------------------
+ *  BOARD BITMAPS
+ * ------------------------------------------------------------------------- */
+uint8_t playerOccupiedBitmap[BITMAP_SIZE];
+uint8_t playerAttackBitmap  [BITMAP_SIZE];
+uint8_t enemyOccupiedBitmap [BITMAP_SIZE];
+uint8_t enemyAttackBitmap   [BITMAP_SIZE];
 
 /* -------------------------------------------------------------------------
  *  PSEUDO-RANDOM GENERATOR (16-bit LFSR)
@@ -50,19 +58,20 @@ uint16_t rand16(void) {
  * Initialize ADC hardware (AVCC ref, enable, prescaler 128).
  */
 void adc_init(void) {
-	ADMUX  = (1 << REFS0);							 // AVCC reference
-	ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // ADC enable, prescaler 128
-	DIDR0  = (1 << ADC0D) | (1 << ADC1D);			   // Disable digital input buffer for ADC0, ADC1
+	ADMUX  = (1 << REFS0);					// AVCC reference
+	ADCSRA = (1 << ADEN)  | (1 << ADPS2)
+		   | (1 << ADPS1) | (1 << ADPS0);	// ADC enable, prescaler 128
+	DIDR0  = (1 << ADC0D) | (1 << ADC1D);	// Disable digital input buffer for ADC0, ADC1
 }
 
 /**
  * Read ADC value from channel `ch`.
  */
 uint16_t adc_read(uint8_t ch) {
-	ADMUX = (ADMUX & 0xF0) | (ch & 0x0F); // Select channel
-	_delay_us(10);						// Short settle delay
-	ADCSRA |= (1 << ADSC);				 // Start conversion
-	while (ADCSRA & (1 << ADSC));		   // Wait for completion
+	ADMUX = (ADMUX & 0xF0) | (ch & 0x0F);	// Select channel
+	_delay_us(10);							// Short settle delay
+	ADCSRA |= (1 << ADSC);					// Start conversion
+	while (ADCSRA & (1 << ADSC));			// Wait for completion
 	return ADC;
 }
 
@@ -103,10 +112,10 @@ void draw_cell(uint8_t row, uint8_t col, uint16_t colour, uint16_t originX) {
  */
 void draw_cursor(uint8_t row, uint8_t col, uint16_t originX) {
 	int16_t x = originX + col * CELL_SIZE_PX;
-	int16_t y = GRID_Y_PX + row * CELL_SIZE_PX;
+	int16_t y = GRID_Y_PX  + row * CELL_SIZE_PX;
 
-	drawRect(x, y, CELL_SIZE_PX, CELL_SIZE_PX, CLR_CURSOR);
-	drawRect(x+1, y+1, CELL_SIZE_PX-2, CELL_SIZE_PX-2, CLR_CURSOR);
+	drawRect(x,	y, CELL_SIZE_PX, CELL_SIZE_PX, CLR_CURSOR);
+	drawRect(x+1,  y+1, CELL_SIZE_PX - 2, CELL_SIZE_PX - 2, CLR_CURSOR);
 }
 
 /* -------------------------------------------------------------------------
@@ -144,12 +153,10 @@ void status_msg(const char *msg) {
  * Reset both player and enemy grids to empty.
  */
 void board_reset(void) {
-	for (uint8_t r = 0; r < GRID_ROWS; ++r) {
-		for (uint8_t c = 0; c < GRID_COLS; ++c) {
-			playerGrid[r][c] = (Cell){r, c, false, false};
-			enemyGrid [r][c] = playerGrid[r][c];
-		}
-	}
+	memset(playerOccupiedBitmap, 0, BITMAP_SIZE);
+	memset(playerAttackBitmap,   0, BITMAP_SIZE);
+	memset(enemyOccupiedBitmap,  0, BITMAP_SIZE);
+	memset(enemyAttackBitmap,	0, BITMAP_SIZE);
 	playerRemaining = 0;
 	enemyRemaining  = 0;
 }
@@ -157,16 +164,17 @@ void board_reset(void) {
 /**
  * Check if a ship can fit starting at (row,col) with given length and orientation.
  */
-bool ship_can_fit(Cell B[][GRID_COLS], uint8_t row, uint8_t col,
-				  uint8_t len, bool horizontal) {
+bool ship_can_fit(const uint8_t *occupiedBitmap, uint8_t row, uint8_t col, uint8_t len, bool horizontal) {
 	if (horizontal) {
 		if (col + len > GRID_COLS) return false;
-		for (uint8_t x = col; x < col + len; ++x)
-			if (B[row][x].occupied) return false;
+		for (uint8_t x = 0; x < len; ++x) {
+			if (BITMAP_GET(occupiedBitmap, row, col + x)) return false;
+		}
 	} else {
 		if (row + len > GRID_ROWS) return false;
-		for (uint8_t y = row; y < row + len; ++y)
-			if (B[y][col].occupied) return false;
+		for (uint8_t y = 0; y < len; ++y) {
+			if (BITMAP_GET(occupiedBitmap, row + y, col)) return false;
+		}
 	}
 	return true;
 }
@@ -179,7 +187,7 @@ bool ship_can_fit(Cell B[][GRID_COLS], uint8_t row, uint8_t col,
  */
 void ghost_update(uint8_t row, uint8_t col, bool horizontal, bool draw) {
 	uint8_t len = SHIP_LENGTHS[ghostShipIdx];
-	bool valid = ship_can_fit(playerGrid, row, col, len, horizontal);
+	bool valid = ship_can_fit(playerOccupiedBitmap, row, col, len, horizontal);
 	uint16_t colour = valid ? CLR_GHOST_OK : CLR_GHOST_BAD;
 
 	for (uint8_t k = 0; k < len; ++k) {
@@ -192,7 +200,7 @@ void ghost_update(uint8_t row, uint8_t col, bool horizontal, bool draw) {
 		if (draw) {
 			draw_cell(r, c, colour, PLAYER_GRID_X_PX);
 		} else {
-			uint16_t base = playerGrid[r][c].occupied ? CLR_SHIP : CLR_CYAN;
+			uint16_t base = BITMAP_GET(playerOccupiedBitmap, r, c) ? CLR_SHIP : CLR_CYAN;
 			draw_cell(r, c, base, PLAYER_GRID_X_PX);
 		}
 	}
@@ -201,15 +209,14 @@ void ghost_update(uint8_t row, uint8_t col, bool horizontal, bool draw) {
 /**
  * Finalize placing the current ship onto the player's grid.
  */
-void player_place_current_ship(uint8_t row, uint8_t col,
-								bool horizontal, uint8_t len) {
+void player_place_current_ship(uint8_t row, uint8_t col, bool horizontal, uint8_t len) {
 	playerFleet[ghostShipIdx] = (Ship){row, col, len, horizontal};
 
 	for (uint8_t k = 0; k < len; ++k) {
 		uint8_t r = row + (horizontal ? 0 : k);
 		uint8_t c = col + (horizontal ? k : 0);
 
-		playerGrid[r][c].occupied = true;
+		BITMAP_SET(playerOccupiedBitmap, r, c);
 		++playerRemaining;
 		draw_cell(r, c, CLR_SHIP, PLAYER_GRID_X_PX);
 	}
@@ -226,17 +233,15 @@ void enemy_place_random(void) {
 			uint8_t row = rand16() % GRID_ROWS;
 			uint8_t col = rand16() % GRID_COLS;
 
-			if (!ship_can_fit(enemyGrid, row, col, len, horizontal))
+			if (!ship_can_fit(enemyOccupiedBitmap, row, col, len, horizontal))
 				continue;
 
 			enemyFleet[i] = (Ship){row, col, len, horizontal};
 
-			if (horizontal) {
-				for (uint8_t x = col; x < col + len; ++x)
-					enemyGrid[row][x].occupied = true;
-			} else {
-				for (uint8_t y = row; y < row + len; ++y)
-					enemyGrid[y][col].occupied = true;
+			for (uint8_t k = 0; k < len; ++k) {
+				uint8_t r = row + (horizontal ? 0 : k);
+				uint8_t c = col + (horizontal ? k : 0);
+				BITMAP_SET(enemyOccupiedBitmap, r, c);
 			}
 
 			enemyRemaining += len;
@@ -253,24 +258,19 @@ void enemy_place_random(void) {
  * Draw the initial main menu screen.
  */
 void gui_draw_main_menu(void) {
-
-	// Black background (main menu's background color in header file)
 	fillScreen(CLR_MM_BG);
 
-	// Start the title text ("A Rmada" is missing its letter V!)
-	drawString(67, 15, "A Rmada",   CLR_WHITE, CLR_MM_BG, 5, &font5x7, 0);
-	drawString(162, 55, "ECE:3360", CLR_WHITE, CLR_MM_BG, 2, &font5x7, 0);
+	// Title
+	drawString(67, 15,  "A Rmada",  CLR_WHITE, CLR_MM_BG, 5, &font5x7, 0);
+	drawString(162,55,   "ECE:3360", CLR_WHITE, CLR_MM_BG, 2, &font5x7, 0);
 
-	// Draw button textures
+	// Buttons & gear
 	gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
 	gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
-	
-	// Draw the gear icon in the bottom-right corner
 	gui_draw_settings_gear(CLR_LIGHT_GRAY);
 
-	// The letter "V" slowly fades into the title
+	// Animate 'V'
 	gui_animate_title_letter_v();
-
 }
 
 /*
@@ -293,26 +293,26 @@ void gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color) {
  * Draw or redraw the gear icon on the main menu screen.
  */
 void gui_draw_settings_gear(uint16_t color) {
-	
+
 	// Center of the gear
 	uint16_t x_center = 303;
 	uint16_t y_center = 223;
-	
+
 	// Larger circle
 	fillCircle(x_center, y_center, 8, color);
-	
+
 	// Bottom and top spokes; left and right spokes
 	fillRect(x_center-1, y_center-12, 3, 24, color);
 	fillRect(x_center-12, y_center-1, 24, 3, color);
-	
+
 	// Top-left and bottom-right spokes
 	fillTriangle(x_center-9, y_center-8, x_center+10, y_center+8, x_center+8, y_center+9, color);
 	fillTriangle(x_center-9, y_center-8, x_center+10, y_center+8, x_center-7, y_center-9, color);
-	
+
 	// Top-right and bottom-left spokes
 	fillTriangle(x_center+10, y_center-8, x_center-9, y_center+8, x_center-7, y_center+9, color);
 	fillTriangle(x_center+10, y_center-8, x_center-9, y_center+8, x_center+8, y_center-9, color);
-	
+
 	// Hollow out the middle (to the background color)
 	fillCircle(x_center, y_center, 4, CLR_MM_BG);
 }
@@ -321,33 +321,29 @@ void gui_draw_settings_gear(uint16_t color) {
  * Animate the title screen's letter 'V' to fade in slowly.
  */
 void gui_animate_title_letter_v(void) {
-
-	for (uint8_t i=0; i<255; i+=3) {
-		drawString(93, 15, "V", rgb(i, i, i), CLR_MM_BG, 5, &font5x7, 0);		// The letter "V" slowly fades into the title
+	for (uint8_t i = 0; i < 255; i += 3) {
+		drawString(93, 15, "V", rgb(i, i, i), CLR_MM_BG, 5, &font5x7, 0);
 	}
-
 }
-
 
 /**
  * Draw the initial ship placement screen.
  */
 void gui_draw_placement(void) {
-
 	header_place();
 	status_msg("Use stick to place");
 
-	// Remove visual artifacts from the main menu screen not being drawn over
+	// Clear artifacts
 	fillRect(0, 200, 320, 10, CLR_BLACK);
 
 	for (uint8_t r = 0; r < GRID_ROWS; ++r) {
 		for (uint8_t c = 0; c < GRID_COLS; ++c) {
-			draw_cell(r, c, CLR_CYAN, PLAYER_GRID_X_PX); // Player grid
-			draw_cell(r, c, CLR_NAVY, ENEMY_GRID_X_PX);  // Enemy grid
+			draw_cell(r, c, CLR_CYAN, PLAYER_GRID_X_PX);
+			draw_cell(r, c, CLR_NAVY, ENEMY_GRID_X_PX);
 		}
 	}
 
-	// Redraw already placed ships
+	// Redraw placed ships
 	for (uint8_t i = 0; i < ghostShipIdx; ++i) {
 		Ship *s = &playerFleet[i];
 		for (uint8_t k = 0; k < s->length; ++k) {
@@ -360,7 +356,7 @@ void gui_draw_placement(void) {
 		}
 	}
 
-	// Draw ghost preview of next ship
+	// Ghost preview
 	ghost_update(selRow, selCol, ghostHorizontal, true);
 }
 
@@ -371,14 +367,18 @@ void gui_draw_play_screen(void) {
 	for (uint8_t r = 0; r < GRID_ROWS; ++r) {
 		for (uint8_t c = 0; c < GRID_COLS; ++c) {
 			/* --- Player board --- */
-			uint16_t pcol = playerGrid[r][c].occupied ? CLR_SHIP : CLR_CYAN;
-			if (playerGrid[r][c].attacked)
-				pcol = playerGrid[r][c].occupied ? CLR_HIT : CLR_MISS;
+			uint16_t pcol = BITMAP_GET(playerOccupiedBitmap, r, c)
+						  ? CLR_SHIP : CLR_CYAN;
+			if (BITMAP_GET(playerAttackBitmap, r, c))
+				pcol = BITMAP_GET(playerOccupiedBitmap, r, c) ? CLR_HIT : CLR_MISS;
 			draw_cell(r, c, pcol, PLAYER_GRID_X_PX);
 
 			/* --- Enemy board --- */
-			Cell *e = &enemyGrid[r][c];
-			uint16_t ecol = !e->attacked ? CLR_NAVY : (e->occupied ? CLR_HIT : CLR_MISS);
+			uint16_t ecol = !BITMAP_GET(enemyAttackBitmap, r, c)
+							? CLR_NAVY
+							: (BITMAP_GET(enemyOccupiedBitmap, r, c)
+							? CLR_HIT : CLR_MISS);
+
 			draw_cell(r, c, ecol, ENEMY_GRID_X_PX);
 		}
 	}

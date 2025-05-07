@@ -1,9 +1,10 @@
 /* -------------------------------------------------------------------------
- * battleship_utils.h - Header file for battleship_utils.c
+ * battleship_utils.h
+ * Helper routines for Battleship, optimized for minimal SRAM usage
  *
- * v1.2 - Initial Sound Effects
+ * v2.0 - Bitmap Board representation for SRAM Optimization
  * Copyright (c) 2025 Peter Kamp
- * --------------------------------------------------------------------------- */
+ * ------------------------------------------------------------------------- */
 
 #ifndef BATTLESHIP_UTILS_H
 #define BATTLESHIP_UTILS_H
@@ -11,19 +12,22 @@
 /* -------------------------------------------------------------------------
  *  Standard headers
  * ------------------------------------------------------------------------- */
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 
 /* -------------------------------------------------------------------------
- *  Board dimensions and color definitions
+ *  Board dimensions and definitions
  * ------------------------------------------------------------------------- */
 #define GRID_ROWS			10
 #define GRID_COLS			10
-#define CELL_SIZE_PX		16
+#define GRID_CELLS			(GRID_ROWS * GRID_COLS)
+#define BITMAP_SIZE			((GRID_CELLS + 7) / 8)   /* bytes needed to store one bit per cell */
 
+/* -------------------------------------------------------------------------
+ *  Pixel geometry
+ * ------------------------------------------------------------------------- */
+#define CELL_SIZE_PX		16
 #define PLAYER_GRID_X_PX	0
 #define ENEMY_GRID_X_PX		160
 #define GRID_Y_PX			40
@@ -31,8 +35,10 @@
 #define HEADER_HEIGHT_PX	40
 #define STATUS_Y_PX			210
 
-/* Color definitions (RGB565 via gfx.h) */
-#define CLR_MM_BG			rgb(0,0,0) 		// Main menu's background color
+/* -------------------------------------------------------------------------
+ *  Color definitions (RGB565 via gfx.h)
+ * ------------------------------------------------------------------------- */
+#define CLR_MM_BG			rgb(0,0,0)
 #define CLR_BLACK			rgb(0,0,0)
 #define CLR_WHITE			rgb(255,255,255)
 #define CLR_DARK_GRAY		rgb(64,64,64)
@@ -46,7 +52,7 @@
 #define CLR_GHOST_OK		rgb(0,255,0)
 #define CLR_GHOST_BAD		rgb(255,0,0)
 #define CLR_CURSOR			rgb(255,255,0)
-#define CLR_PENDING			rgb(255, 128, 0)
+#define CLR_PENDING			rgb(255,128,0)
 
 /* -------------------------------------------------------------------------
  *  Joystick configuration
@@ -55,24 +61,91 @@
 #define JOY_DEADZONE_RAW	40
 #define JOY_MIN_RAW			(JOY_CENTER_RAW - JOY_DEADZONE_RAW)
 #define JOY_MAX_RAW			(JOY_CENTER_RAW + JOY_DEADZONE_RAW)
-#define JOY_REPEAT_DELAY_MS	150
+#define JOY_REPEAT_DELAY_MS 150
 
 /* -------------------------------------------------------------------------
  *  Ship constants
  * ------------------------------------------------------------------------- */
-#define NUM_SHIPS			5
+#define NUM_SHIPS 5
 extern const uint8_t SHIP_LENGTHS[NUM_SHIPS];
 
 /* -------------------------------------------------------------------------
- *  Game state structures
+ *  Bitmap board states
+ *
+ *  Each of these arrays is BITMAP_SIZE bytes; each bit represents one cell
+ *  in row-major order (bit 0 = row 0,col 0; bit 1 = row 0,col 1; … bit 99 = row 9,col 9).
  * ------------------------------------------------------------------------- */
-typedef struct {
-	uint8_t row;
-	uint8_t col;
-	bool	occupied;
-	bool	attacked;
-} Cell;
+extern uint8_t playerOccupiedBitmap[BITMAP_SIZE];
+extern uint8_t playerAttackBitmap  [BITMAP_SIZE];
+extern uint8_t enemyOccupiedBitmap [BITMAP_SIZE];
+extern uint8_t enemyAttackBitmap   [BITMAP_SIZE];
 
+/* -------------------------------------------------------------------------
+ *  Internal bit-manipulation helpers (static inline)
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Compute a linear index (0 to GRID_ROWS*GRID_COLS-1) from a 2D row/col.
+ * This maps (row, col) into the flat bit-array.
+ */
+static inline uint16_t _grid_index(uint8_t row, uint8_t col) {
+    return (uint16_t)row * GRID_COLS + col;
+}
+
+/**
+ * Given a bit-array index i, compute which byte contains bit i.
+ * Equivalent to i / 8.
+ */
+static inline uint8_t _byte_index(uint16_t idx) {
+    return (uint8_t)(idx >> 3);
+}
+
+/**
+ * Given a bit-array index i, compute a mask with a 1 in the bit position i%8.
+ * Equivalent to (1 << (i & 7)).
+ */
+static inline uint8_t _bit_mask(uint16_t idx) {
+    return (uint8_t)(1u << (idx & 7));
+}
+
+/* -------------------------------------------------------------------------
+ *  Macros to get/set/clear a bit in a bitmap
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Test whether bit (r, c) in 'bitmap' is set.
+ * 1) compute flat index = _grid_index(r,c)
+ * 2) find containing byte = bitmap[_byte_index(index)]
+ * 3) mask off the desired bit = _bit_mask(index)
+ * 4) return true if nonzero
+ */
+#define BITMAP_GET(bitmap, r, c)					\
+	( (bitmap[_byte_index(_grid_index((r),(c)))]	\
+	& _bit_mask(_grid_index((r),(c)))) != 0 )
+
+/**
+ * Set bit (r, c) in 'bitmap' to 1.
+ * 1) compute flat index
+ * 2) locate containing byte
+ * 3) OR in the bit mask
+ */
+#define BITMAP_SET(bitmap, r, c)					\
+	( bitmap[_byte_index(_grid_index((r),(c)))]		\
+	|= _bit_mask(_grid_index((r),(c))) )
+
+/**
+ * Clear bit (r, c) in 'bitmap' to 0.
+ * 1) compute flat index
+ * 2) locate containing byte
+ * 3) AND with inverse of bit mask
+ */
+#define BITMAP_CLEAR(bitmap, r, c)					\
+	( bitmap[_byte_index(_grid_index((r),(c)))]		\
+	&= (uint8_t)~_bit_mask(_grid_index((r),(c))) )
+
+/* -------------------------------------------------------------------------
+ *  Ship description
+ * ------------------------------------------------------------------------- */
 typedef struct {
 	uint8_t row;
 	uint8_t col;
@@ -81,69 +154,69 @@ typedef struct {
 } Ship;
 
 /* -------------------------------------------------------------------------
- *  Extern global game state (defined in battleship_mp.c)
+ *  Extern global game state
  * ------------------------------------------------------------------------- */
-extern Cell   playerGrid[GRID_ROWS][GRID_COLS];
-extern Cell   enemyGrid [GRID_ROWS][GRID_COLS];
-
-extern Ship   playerFleet[NUM_SHIPS];
-extern Ship   enemyFleet [NUM_SHIPS];
+extern Ship	playerFleet[NUM_SHIPS];
+extern Ship	enemyFleet [NUM_SHIPS];
 
 extern uint8_t playerRemaining;
 extern uint8_t enemyRemaining;
 
-extern uint8_t selRow, selCol;
-extern uint8_t ghostShipIdx;
-extern bool	ghostHorizontal;
-extern uint8_t lastEnemyRow, lastEnemyCol;
+extern uint8_t selRow;			/* current cursor row */
+extern uint8_t selCol;			/* current cursor col */
+extern uint8_t ghostShipIdx;	/* index of ship being placed */
+extern bool	ghostHorizontal;	/* orientation of ship placement */
 
 /* -------------------------------------------------------------------------
  *  Function prototypes
  * ------------------------------------------------------------------------- */
 
-/* ADC (Joystick) helpers */
-void	 adc_init(void);
+/* ADC (joystick) */
+void	adc_init(void);
 uint16_t adc_read(uint8_t ch);
 
-/* Button helpers */
-void	 button_init(void);
-bool	 button_is_pressed(void);
+/* Button */
+void	button_init(void);
+bool	button_is_pressed(void);
 
-/* Random number generation */
-void	 srand16(uint16_t seed);
+/* Random (16-bit LFSR) */
+void	srand16(uint16_t seed);
 uint16_t rand16(void);
 
 /* Drawing primitives */
-void	 draw_cell(uint8_t row, uint8_t col, uint16_t colour, uint16_t originX);
-void	 draw_cursor(uint8_t row, uint8_t col, uint16_t originX);
+void	draw_cell(uint8_t row, uint8_t col, uint16_t colour, uint16_t originX);
+void	draw_cursor(uint8_t row, uint8_t col, uint16_t originX);
 
-/* Text UI helpers */
-void	 header_place(void);
-void	 header_play(void);
-void	 status_msg(const char *msg);
+/* Text/UI helpers */
+void	header_place(void);
+void	header_play(void);
+void	status_msg(const char *msg);
 
-/* Board utilities */
-void	 board_reset(void);
-bool	 ship_can_fit(Cell B[][GRID_COLS], uint8_t row, uint8_t col, uint8_t len, bool horizontal);
+/* Board reset: clears both occupied and attacked bitmaps, resets counters */
+void	board_reset(void);
+
+// Can a ship of length len fit at (row,col) without overlapping?
+// occupiedBitmap = playerOccupiedBitmap or enemyOccupiedBitmap.
+bool	ship_can_fit(const uint8_t *occupiedBitmap, uint8_t row, uint8_t col, uint8_t len, bool horizontal);
 
 /* Ship placement helpers */
-void	 ghost_update(uint8_t row, uint8_t col, bool horizontal, bool draw);
-void	 player_place_current_ship(uint8_t row, uint8_t col, bool horizontal, uint8_t len);
-void	 enemy_place_random(void);
+void	ghost_update(uint8_t row, uint8_t col, bool horizontal, bool draw);
+void	player_place_current_ship(uint8_t row, uint8_t col, bool horizontal, uint8_t len);
+void	enemy_place_random(void);
 
 /* GUI screen builders */
-void	 gui_draw_main_menu(void);
-void	 gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color);
-void	 gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color);
-void     gui_draw_settings_gear(uint16_t color);
-void	 gui_animate_title_letter_v(void);
-void	 gui_draw_placement(void);
-void	 gui_draw_play_screen(void);
+void	gui_draw_main_menu(void);
+void	gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color);
+void	gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color);
+void	gui_draw_settings_gear(uint16_t color);
+void	gui_animate_title_letter_v(void);
+void	gui_draw_placement(void);
+void	gui_draw_play_screen(void);
 
-/* UART communication helpers */
-void	 uart_init(void);
-int		 uart_putchar(char c, FILE *stream);
-uint8_t  uart_char_available(void);
-char	 uart_getchar(void);
+/* UART (printf redirection) */
+void	uart_init(void);
+int		uart_putchar(char c, FILE *stream);
+uint8_t uart_char_available(void);
+char	uart_getchar(void);
 
 #endif /* BATTLESHIP_UTILS_H */

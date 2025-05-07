@@ -90,10 +90,10 @@ extern const uint8_t SHIP_LENGTHS[NUM_SHIPS];
  *  Each of these arrays is BITMAP_SIZE bytes; each bit represents one cell
  *  in row-major order (bit 0 = row 0,col 0; bit 1 = row 0,col 1; … bit 99 = row 9,col 9).
  * ------------------------------------------------------------------------- */
-extern uint8_t playerOccupiedBitmap[BITMAP_SIZE];
-extern uint8_t playerAttackBitmap  [BITMAP_SIZE];
-extern uint8_t enemyOccupiedBitmap [BITMAP_SIZE];
-extern uint8_t enemyAttackBitmap   [BITMAP_SIZE];
+extern uint8_t playerOccupiedBitmap	  [BITMAP_SIZE];
+extern uint8_t playerAttackedAtBitmap	  [BITMAP_SIZE];
+extern uint8_t enemyConfirmedHitBitmap[BITMAP_SIZE];
+extern uint8_t enemyAttackedAtBitmap	  [BITMAP_SIZE];
 
 /* -------------------------------------------------------------------------
  *  Internal bit-manipulation helpers (static inline)
@@ -172,7 +172,6 @@ typedef struct {
  *  Extern global game state
  * ------------------------------------------------------------------------- */
 extern Ship	playerFleet[NUM_SHIPS];
-extern Ship	enemyFleet [NUM_SHIPS];
 
 extern uint8_t playerRemaining;
 extern uint8_t enemyRemaining;
@@ -187,16 +186,25 @@ extern bool	ghostHorizontal;	/* orientation of ship placement */
  * ------------------------------------------------------------------------- */
 
 /* ADC (joystick) */
-void	adc_init(void);
-uint16_t adc_read(uint8_t ch);
+void		adc_init(void);
+uint16_t	adc_read(uint8_t ch);
 
 /* Button */
-void	button_init(void);
-bool	button_is_pressed(void);
+void		button_init(void);
+bool		button_is_pressed(void);
 
 /* Random (16-bit LFSR) */
-void	srand16(uint16_t seed);
-uint16_t rand16(void);
+void		srand16(uint16_t seed);
+uint16_t	rand16(void);
+
+/* Random int using rand16() */
+uint16_t	rand_int(uint16_t min, uint16_t max);
+
+/* Random float using rand16() */
+float		rand_float(float min, float max);
+
+/* Returns true randomly, `probability` (0.0 - 1.0) of the time */
+float		rand_true(float probability);
 
 /* Drawing primitives */
 void	draw_cell(uint8_t row, uint8_t col, uint16_t colour, uint16_t originX);
@@ -211,13 +219,12 @@ void	status_msg(const char *msg);
 void	board_reset(void);
 
 // Can a ship of length len fit at (row,col) without overlapping?
-// occupiedBitmap = playerOccupiedBitmap or enemyOccupiedBitmap.
+// occupiedBitmap = playerOccupiedBitmap or aiOccupiedBitmap.
 bool	ship_can_fit(const uint8_t *occupiedBitmap, uint8_t row, uint8_t col, uint8_t len, bool horizontal);
 
 /* Ship placement helpers */
 void	ghost_update(uint8_t row, uint8_t col, bool horizontal, bool draw);
 void	player_place_current_ship(uint8_t row, uint8_t col, bool horizontal, uint8_t len);
-void	enemy_place_random(void);
 
 /* GUI screen builders */
 void	 gui_draw_main_menu(void);

@@ -33,7 +33,6 @@ bool drawImageTest = true;
  *  GLOBAL GAME STATE
  * ------------------------------------------------------------------------- */
 Ship   playerFleet[NUM_SHIPS];
-Ship   enemyFleet [NUM_SHIPS];
 
 uint8_t lastEnemyRow = 0;
 uint8_t lastEnemyCol = 0;
@@ -173,8 +172,8 @@ static void on_attack(uint8_t r, uint8_t c) {
 		return; // Ignore invalid coordinates
 
 	// Was this cell already attacked?
-	bool first_time = !BITMAP_GET(playerAttackBitmap, r, c);
-	BITMAP_SET(playerAttackBitmap, r, c);
+	bool first_time = !BITMAP_GET(playerAttackedAtBitmap, r, c);
+	BITMAP_SET(playerAttackedAtBitmap, r, c);
 
 	bool hit = BITMAP_GET(playerOccupiedBitmap, r, c);
 
@@ -224,7 +223,7 @@ static void on_result(uint8_t r, uint8_t c, bool hit) {
 	draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, ENEMY_GRID_X_PX);
 
 	// 4) Mark in our enemy bitmaps
-	if (hit) BITMAP_SET(enemyOccupiedBitmap, r, c);
+	if (hit) BITMAP_SET(enemyConfirmedHitBitmap, r, c);
 
 	// 5) Redraw selection cursor
 	draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
@@ -657,8 +656,8 @@ static void handle_my_turn(void) {
 
 		if (moved) {
 			// Redraw previous cell background
-			bool oldAtt = BITMAP_GET(enemyAttackBitmap, oldR, oldC);
-			bool oldOcc = BITMAP_GET(enemyOccupiedBitmap, oldR, oldC);
+			bool oldAtt = BITMAP_GET(enemyAttackedAtBitmap, oldR, oldC);
+			bool oldOcc = BITMAP_GET(enemyConfirmedHitBitmap, oldR, oldC);
 			uint16_t bg = oldAtt ? (oldOcc ? CLR_HIT : CLR_MISS) : CLR_NAVY;
 			draw_cell(oldR, oldC, bg, ENEMY_GRID_X_PX);
 
@@ -674,9 +673,9 @@ static void handle_my_turn(void) {
 	if (pressed && !buttonLatch) {
 		buttonLatch = true;
 
-		if (!BITMAP_GET(enemyAttackBitmap, selRow, selCol)) {
+		if (!BITMAP_GET(enemyAttackedAtBitmap, selRow, selCol)) {
 			// Fire at unshot square
-			BITMAP_SET(enemyAttackBitmap, selRow, selCol);
+			BITMAP_SET(enemyAttackedAtBitmap, selRow, selCol);
 
 			draw_cell(selRow, selCol, CLR_PENDING, ENEMY_GRID_X_PX); // Pending color
 			pendingRow = selRow;
@@ -754,11 +753,13 @@ int main(void) {
 	adc_init();
 	button_init();
 	uart_init();
-	stdout = &uart_stdout;   // Redirect printf to UART
+	stdout = &uart_stdout;					// Redirect printf to UART
 
 	initEepromImage();
 
-	gState = GS_RESET;	   // The initial game state is GS_RESET
+	srand16(adc_read(3) * adc_read(4));		// Initialize the RNG for `singleplayer.c` (with unused inputs)
+
+	gState = GS_RESET;						// The initial game state is GS_RESET
 
 	/* ---------------------------------------------------------------------
 	 * Main game loop (runs forever)

@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------
  * main.c - Two-player Battleship over UART
  *
- * v1.2 - Initial Sound Effects
+ * v2.0 - Bitmap Board representation for SRAM Optimization
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 
@@ -27,34 +27,29 @@ bool soundsEnabled	 = true;
 /* -------------------------------------------------------------------------
  *  GLOBAL GAME STATE
  * ------------------------------------------------------------------------- */
-// These match externs declared in battleship_utils.h
-
-Cell   playerGrid[GRID_ROWS][GRID_COLS];
-Cell   enemyGrid [GRID_ROWS][GRID_COLS];
-
 Ship   playerFleet[NUM_SHIPS];
 Ship   enemyFleet [NUM_SHIPS];
 
 uint8_t lastEnemyRow = 0;
 uint8_t lastEnemyCol = 0;
 
-uint8_t selRow, selCol;			   // Current selection cursor
-uint8_t ghostShipIdx;				  // Ship being placed
-bool	ghostHorizontal;			   // Ship placement orientation
+uint8_t selRow, selCol;					// Current selection cursor
+uint8_t ghostShipIdx;					// Ship being placed
+bool	ghostHorizontal;				// Ship placement orientation
 uint8_t playerRemaining, enemyRemaining;
 
-static int8_t pendingRow = -1;		  // Row of pending outgoing shot
-static int8_t pendingCol = -1;		  // Col of pending outgoing shot
+static int8_t pendingRow = -1;			// Row of pending outgoing shot
+static int8_t pendingCol = -1;			// Col of pending outgoing shot
 
 /* -------------------------------------------------------------------------
  *  LOCAL STATE
  * ------------------------------------------------------------------------- */
-static uint32_t systemTime = 0;		 // System milliseconds ticker
+static uint32_t systemTime	  = 0;		// System milliseconds ticker
 static uint32_t nextMoveAllowed = 0;	// Joystick move repeat throttle
 
-static bool	 buttonLatch = false;	// Prevent multiple button presses
-static bool	 overButtonLatch = false;
-static uint8_t  overTapCount = 0;
+static bool	buttonLatch	 = false;		// Prevent multiple button presses
+static bool	overButtonLatch = false;
+static uint8_t overTapCount	= 0;
 
 /* -------------------------------------------------------------------------
  *  UART (printf redirected)
@@ -66,14 +61,14 @@ static FILE uart_stdout = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRIT
  * ------------------------------------------------------------------------- */
 #define RX_MAX 32
 
-static char	 rxBuf[RX_MAX];				// RX buffer
-static uint8_t  rxIdx = 0;				// Current RX buffer index
+static char	rxBuf[RX_MAX];			// RX buffer
+static uint8_t rxIdx = 0;			// Current RX buffer index
 
-static uint16_t selfToken = 0;			// Local token (based on finish time)
-static uint16_t peerToken = 0;			// Remote peer token
+static uint16_t selfToken	= 0;	// Local token (based on finish time)
+static uint16_t peerToken	= 0;	// Remote peer token
 
-static uint16_t resendTick = 0;			// ms since last packet sent
-static uint16_t postReadyLeft = 0;		// How long to keep sending READY after sync
+static uint16_t resendTick   = 0;	// ms since last packet sent
+static uint16_t postReadyLeft= 0;	// How long to keep sending READY after sync
 
 /* -------------------------------------------------------------------------
  *  GAME STATES
@@ -128,7 +123,7 @@ static inline void tx_attack(uint8_t r, uint8_t c) {
 		sp_on_tx_attack(r, c);
 	} else {
 		printf("A %u %u\n", r, c);
-	}      
+	}
 }
 
 static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
@@ -136,24 +131,11 @@ static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
 		sp_on_tx_result(r, c, hit);
 	} else {
 		printf("R %u %u %c\n", r, c, hit ? 'H' : 'M');
-	}    
+	}
 }
 
 // Singleplayer Override
 void net_inject_line(const char *line);
-
-/* -------------------------------------------------------------------------
- *  GAME STATE HANDLERS
- * ------------------------------------------------------------------------- */
-static void handle_reset(void);
-static void handle_main_menu(void);
-static void handle_settings(void);
-static void handle_new_game(void);
-static void handle_placing(void);
-static void handle_wait_peer(void);
-static void handle_my_turn(void);
-static void handle_over(void);
-
 
 /* -------------------------------------------------------------------------
  *  INCOMING LINE HANDLERS
@@ -175,11 +157,11 @@ static void on_attack(uint8_t r, uint8_t c) {
 	if (r >= GRID_ROWS || c >= GRID_COLS)
 		return; // Ignore invalid coordinates
 
-	Cell *cell = &playerGrid[r][c];
-	bool first_time = !cell->attacked;
-	cell->attacked = true;
+	// Was this cell already attacked?
+	bool first_time = !BITMAP_GET(playerAttackBitmap, r, c);
+	BITMAP_SET(playerAttackBitmap, r, c);
 
-	bool hit = cell->occupied;
+	bool hit = BITMAP_GET(playerOccupiedBitmap, r, c);
 
 	if (first_time) {
 		// First time being attacked here ? update grid visually
@@ -226,9 +208,8 @@ static void on_result(uint8_t r, uint8_t c, bool hit) {
 	// 3) Paint final outcome
 	draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, ENEMY_GRID_X_PX);
 
-	// 4) Mark in our enemyGrid memory
-	Cell *cell = &enemyGrid[r][c];
-	cell->occupied = hit;
+	// 4) Mark in our enemy bitmaps
+	if (hit) BITMAP_SET(enemyOccupiedBitmap, r, c);
 
 	// 5) Redraw selection cursor
 	draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
@@ -320,16 +301,15 @@ static void net_tick(void) {
  *  RESET PROTOCOL & DRAW INITIAL MAIN MENU SCREEN
  * ------------------------------------------------------------------------- */
 
-static void handle_reset(void) {
-
+void handle_reset(void) {
 	board_reset();
-	ghostShipIdx = 0;
+	ghostShipIdx	= 0;
 	ghostHorizontal = true;
 	selRow = selCol = GRID_ROWS / 2;
-	nState = NS_IDLE;
-	peerToken = 0;
-	resendTick = 0;
-	postReadyLeft = 0;
+	nState		  = NS_IDLE;
+	peerToken	   = 0;
+	resendTick	  = 0;
+	postReadyLeft   = 0;
 
 	gui_draw_main_menu();
 
@@ -340,17 +320,14 @@ static void handle_reset(void) {
  *  MAIN MENU SCREEN - USER SELECTS SINGLE OR MULTIPLAYER MODE, OR SETTINGS
  * ------------------------------------------------------------------------- */
 static void handle_main_menu(void) {
-
 	/* --- Select single/multiplayer mode with the joystick, and update button textures --- */
 	uint16_t x = adc_read(0);
 	uint16_t y = adc_read(1);
 
 	switch (gMode) {
-		
 		// No button currently selected
 		case GM_NONE:
-		
-			if (y < JOY_MIN_RAW) {				// Joystick up, go to multiplayer button
+			if (y < JOY_MIN_RAW) {			   // Joystick up, go to multiplayer button
 				gMode = GM_MULTIPLAYER;
 				gui_draw_multiplayer_button(CLR_WHITE, CLR_CYAN);
 			} else if (y > JOY_MAX_RAW) {		// Joystick down, go to singleplayer button
@@ -358,54 +335,49 @@ static void handle_main_menu(void) {
 				gui_draw_singleplayer_button(CLR_WHITE, CLR_GREEN);
 			}
 			break;
-	
+
 		// Multiplayer button currently selected
 		case GM_MULTIPLAYER:
-		
-			if (y > JOY_MAX_RAW) {				// Joystick down, go to singleplayer button (and fade out multiplayer button)
+			if (y > JOY_MAX_RAW) {			   // Joystick down, go to singleplayer button (and fade out multiplayer button)
 				gMode = GM_SINGLEPLAYER;
 				gui_draw_singleplayer_button(CLR_WHITE, CLR_GREEN);
 				gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
 			}
 			break;
-		
+
 		// Singleplayer button currently selected
 		case GM_SINGLEPLAYER:
-		
-			if (y < JOY_MIN_RAW) {				// Joystick up, go to multiplayer button (and fade out singleplayer button)
+			if (y < JOY_MIN_RAW) {			   // Joystick up, go to multiplayer button (and fade out singleplayer button)
 				gMode = GM_MULTIPLAYER;
 				gui_draw_multiplayer_button(CLR_WHITE, CLR_CYAN);
 				gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
 			}
-			else if (x > JOY_MAX_RAW) {			// Joystick right, go to settings gear icon (and fade out singleplayer button)
+			else if (x > JOY_MAX_RAW) {		 // Joystick right, go to settings gear icon (and fade out singleplayer button)
 				gMode = GM_SETTINGS_GEAR;
 				gui_draw_settings_gear(CLR_WHITE);
 				gui_draw_singleplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
 			}
 			break;
-		
+
 		// Settings gear currently selected
 		case GM_SETTINGS_GEAR:
-		
-			if (x < JOY_MIN_RAW) {				// Joystick left, go to singleplayer button (and fade out settings gear)
+			if (x < JOY_MIN_RAW) {			   // Joystick left, go to singleplayer button (and fade out settings gear)
 				gMode = GM_SINGLEPLAYER;
 				gui_draw_singleplayer_button(CLR_WHITE, CLR_GREEN);
 				gui_draw_settings_gear(CLR_LIGHT_GRAY);
 				_delay_ms(200);
 			}
 			break;
-		}
-	
+	}
+
 	/* --- If user presses the joystick after selecting a gamemode, start a game --- */
 	if (button_is_pressed() && (gMode == GM_MULTIPLAYER || gMode == GM_SINGLEPLAYER)) {
 		gState = GS_NEWGAME;
 	}
-	
 	/* --- If user presses the joystick after selecting the settings gear, go to settings --- */
 	else if (button_is_pressed() && (gMode == GM_SETTINGS_GEAR)) {
 		gState = GS_SETTINGS;
 	}
-
 }
 
 /* -------------------------------------------------------------------------
@@ -413,7 +385,7 @@ static void handle_main_menu(void) {
  * ------------------------------------------------------------------------- */
 static void handle_settings(void) {
 	fillRect(0, 0, 320, 120, CLR_GREEN);		// Just make the screen green for now and block forever
-	
+
 	while (1) {}
 }
 
@@ -429,13 +401,9 @@ static void handle_new_game(void) {
 /* -------------------------------------------------------------------------
  *  FLEET PLACEMENT SCREEN
  * ------------------------------------------------------------------------- */
-
-/**
- * Allow player to place their ships manually using joystick and button.
- */
 static void handle_placing(void) {
 	static uint32_t invalidTimer = 0;
-	static bool showInvalid = false;
+	static bool showInvalid	  = false;
 
 	if (showInvalid) {
 		if (systemTime - invalidTimer >= 500) {
@@ -453,7 +421,7 @@ static void handle_placing(void) {
 	uint8_t oldR = selRow, oldC = selCol;
 
 	if (systemTime >= nextMoveAllowed) {
-		if	  (y < JOY_MIN_RAW && selRow > 0)			   { --selRow; moved = true; }
+		if		(y < JOY_MIN_RAW && selRow > 0)				{ --selRow; moved = true; }
 		else if (y > JOY_MAX_RAW && selRow < GRID_ROWS - 1)	{ ++selRow; moved = true; }
 		else if (x < JOY_MIN_RAW && selCol > 0)				{ --selCol; moved = true; }
 		else if (x > JOY_MAX_RAW && selCol < GRID_COLS - 1)	{ ++selCol; moved = true; }
@@ -494,7 +462,7 @@ static void handle_placing(void) {
 		} else {
 			/* Short press ? attempt to place ship */
 			uint8_t len = SHIP_LENGTHS[ghostShipIdx];
-			if (ship_can_fit(playerGrid, selRow, selCol, len, ghostHorizontal)) {
+			if (ship_can_fit(playerOccupiedBitmap, selRow, selCol, len, ghostHorizontal)) {
 				ghost_update(selRow, selCol, ghostHorizontal, false);
 				player_place_current_ship(selRow, selCol, ghostHorizontal, len);
 
@@ -504,7 +472,7 @@ static void handle_placing(void) {
 					uint8_t nextLen = SHIP_LENGTHS[ghostShipIdx];
 
 					/* keep the cursor inside the grid */
-					if (ghostHorizontal && selCol > GRID_COLS - nextLen) selCol = GRID_COLS - nextLen;
+					if (ghostHorizontal && selCol > GRID_COLS - nextLen)  selCol = GRID_COLS - nextLen;
 					if (!ghostHorizontal && selRow > GRID_ROWS - nextLen) selRow = GRID_ROWS - nextLen;
 
 					ghost_update(selRow, selCol, ghostHorizontal, true);   // will show grey or red immediately
@@ -564,8 +532,8 @@ static void handle_wait_peer(void) {
 		selCol = GRID_COLS / 2;
 
 		/* Prepare to flood READY for a short time still */
-		postReadyLeft = 2000;
-		resendTick = 0;
+		postReadyLeft	= 2000;
+		resendTick		= 0;
 		nextMoveAllowed = systemTime;
 
 		gui_draw_play_screen();
@@ -588,17 +556,16 @@ static void handle_my_turn(void) {
 	uint8_t oldR = selRow, oldC = selCol;
 
 	if (systemTime >= nextMoveAllowed) {
-		if	  (joyY < JOY_MIN_RAW && selRow > 0)		   { --selRow; moved = true; }
-		else if (joyY > JOY_MAX_RAW && selRow < GRID_ROWS-1) { ++selRow; moved = true; }
-		else if (joyX < JOY_MIN_RAW && selCol > 0)		   { --selCol; moved = true; }
-		else if (joyX > JOY_MAX_RAW && selCol < GRID_COLS-1) { ++selCol; moved = true; }
+		if		(joyY < JOY_MIN_RAW && selRow > 0)				{ --selRow; moved = true; }
+		else if (joyY > JOY_MAX_RAW && selRow < GRID_ROWS-1)	{ ++selRow; moved = true; }
+		else if (joyX < JOY_MIN_RAW && selCol > 0)				{ --selCol; moved = true; }
+		else if (joyX > JOY_MAX_RAW && selCol < GRID_COLS-1)	{ ++selCol; moved = true; }
 
 		if (moved) {
 			// Redraw previous cell background
-			Cell *old = &enemyGrid[oldR][oldC];
-			uint16_t bg = old->attacked
-				? (old->occupied ? CLR_HIT : CLR_MISS)
-				: CLR_NAVY;
+			bool oldAtt = BITMAP_GET(enemyAttackBitmap, oldR, oldC);
+			bool oldOcc = BITMAP_GET(enemyOccupiedBitmap, oldR, oldC);
+			uint16_t bg = oldAtt ? (oldOcc ? CLR_HIT : CLR_MISS) : CLR_NAVY;
 			draw_cell(oldR, oldC, bg, ENEMY_GRID_X_PX);
 
 			// Draw new cursor
@@ -612,11 +579,10 @@ static void handle_my_turn(void) {
 	bool pressed = button_is_pressed();
 	if (pressed && !buttonLatch) {
 		buttonLatch = true;
-		Cell *tgt = &enemyGrid[selRow][selCol];
 
-		if (!tgt->attacked) {
+		if (!BITMAP_GET(enemyAttackBitmap, selRow, selCol)) {
 			// Fire at unshot square
-			tgt->attacked = true;
+			BITMAP_SET(enemyAttackBitmap, selRow, selCol);
 
 			draw_cell(selRow, selCol, CLR_PENDING, ENEMY_GRID_X_PX); // Pending color
 			pendingRow = selRow;
@@ -657,16 +623,16 @@ static void handle_over(void) {
  * ------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------
- *  Helper for single?player mode  lets the AI push a complete line straight
+ *  Helper for single-player mode – lets the AI push a complete line straight
  *  into the normal RX parser (avoids touching the UART layer).
  * ------------------------------------------------------------------------- */
 void net_inject_line(const char *line)
 {
-    /* parse_line expects a writable buffer  make a local copy */
-    char tmp[RX_MAX];
-    strncpy(tmp, line, RX_MAX - 1);
-    tmp[RX_MAX - 1] = '\0';
-    parse_line(tmp);
+	/* parse_line expects a writable buffer – make a local copy */
+	char tmp[RX_MAX];
+	strncpy(tmp, line, RX_MAX - 1);
+	tmp[RX_MAX - 1] = '\0';
+	parse_line(tmp);
 }
 
 /* -------------------------------------------------------------------------
@@ -696,7 +662,7 @@ int main(void) {
 	uart_init();
 	stdout = &uart_stdout;   // Redirect printf to UART
 
-	gState = GS_RESET;		 // The initial game state is GS_RESET
+	gState = GS_RESET;	   // The initial game state is GS_RESET
 
 	/* ---------------------------------------------------------------------
 	 * Main game loop (runs forever)
@@ -728,17 +694,17 @@ int main(void) {
 				handle_my_turn();
 				break;
 			case GS_WAITRES:
-				/* Passive ? waiting for attack result */
+				/* Passive – waiting for attack result */
 				break;
 			case GS_ENEMYTURN:
-				/* Passive ? waiting for peer's move */
+				/* Passive – waiting for peer's move */
 				break;
 			case GS_OVER:
 				handle_over();
 				break;
 		}
-		
-		/* Flush one queued spoofed packet (single?player only) */
+
+		/* Flush one queued spoofed packet (single-player only) */
 		if (gMode == GM_SINGLEPLAYER) sp_tick();
 
 		_delay_ms(1);   // Tick every 1 ms

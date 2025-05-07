@@ -25,10 +25,10 @@ const uint8_t SHIP_LENGTHS[NUM_SHIPS] = {5, 4, 3, 3, 2};
 /* -------------------------------------------------------------------------
  *  BOARD BITMAPS
  * ------------------------------------------------------------------------- */
-uint8_t playerOccupiedBitmap[BITMAP_SIZE];
-uint8_t playerAttackBitmap  [BITMAP_SIZE];
-uint8_t enemyOccupiedBitmap [BITMAP_SIZE];
-uint8_t enemyAttackBitmap   [BITMAP_SIZE];
+uint8_t playerOccupiedBitmap[BITMAP_SIZE];		// Where all of the player's ships actually are, set from the start of the game
+uint8_t playerAttackBitmap  [BITMAP_SIZE];		// All of the squares the player has attacked, up to now	
+uint8_t enemyConfirmedHitBitmap [BITMAP_SIZE];	// All of the *confirmed* enemy ship squares that have been hit, up to now
+uint8_t enemyAttackBitmap   [BITMAP_SIZE];		// All of the squares the enemy has attacked, up to now	
 
 /* -------------------------------------------------------------------------
  *  PSEUDO-RANDOM GENERATOR (16-bit LFSR)
@@ -49,6 +49,14 @@ uint16_t rand16(void) {
 	// Standard Galois 16-bit LFSR feedback polynomial
 	lfsr = (lfsr >> 1) ^ (-(lfsr & 1u) & 0xB400u);
 	return lfsr;
+}
+
+/**
+ * Generate a pseudo-random integer between min and max (inclusive).
+ */
+uint16_t rand_int(uint16_t min, uint16_t max) {
+	uint32_t range = (uint32_t)max - (uint32_t)min + 1;
+	return (uint16_t)(rand16() % range + min);
 }
 
 /* -------------------------------------------------------------------------
@@ -155,7 +163,7 @@ void status_msg(const char *msg) {
 void board_reset(void) {
 	memset(playerOccupiedBitmap, 0, BITMAP_SIZE);
 	memset(playerAttackBitmap,   0, BITMAP_SIZE);
-	memset(enemyOccupiedBitmap,  0, BITMAP_SIZE);
+	memset(enemyConfirmedHitBitmap,  0, BITMAP_SIZE);
 	memset(enemyAttackBitmap,	0, BITMAP_SIZE);
 	playerRemaining = 0;
 	enemyRemaining  = 0;
@@ -219,34 +227,6 @@ void player_place_current_ship(uint8_t row, uint8_t col, bool horizontal, uint8_
 		BITMAP_SET(playerOccupiedBitmap, r, c);
 		++playerRemaining;
 		draw_cell(r, c, CLR_SHIP, PLAYER_GRID_X_PX);
-	}
-}
-
-/**
- * Randomly place the enemy's ships on their grid.
- */
-void enemy_place_random(void) {
-	for (uint8_t i = 0; i < NUM_SHIPS; ++i) {
-		uint8_t len = SHIP_LENGTHS[i];
-		for (uint8_t tries = 0; tries < 100; ++tries) {
-			bool horizontal = rand16() & 1u;
-			uint8_t row = rand16() % GRID_ROWS;
-			uint8_t col = rand16() % GRID_COLS;
-
-			if (!ship_can_fit(enemyOccupiedBitmap, row, col, len, horizontal))
-				continue;
-
-			enemyFleet[i] = (Ship){row, col, len, horizontal};
-
-			for (uint8_t k = 0; k < len; ++k) {
-				uint8_t r = row + (horizontal ? 0 : k);
-				uint8_t c = col + (horizontal ? k : 0);
-				BITMAP_SET(enemyOccupiedBitmap, r, c);
-			}
-
-			enemyRemaining += len;
-			break;
-		}
 	}
 }
 
@@ -465,7 +445,7 @@ void gui_draw_play_screen(void) {
 			/* --- Enemy board --- */
 			uint16_t ecol = !BITMAP_GET(enemyAttackBitmap, r, c)
 							? CLR_NAVY
-							: (BITMAP_GET(enemyOccupiedBitmap, r, c)
+							: (BITMAP_GET(enemyConfirmedHitBitmap, r, c)
 							? CLR_HIT : CLR_MISS);
 
 			draw_cell(r, c, ecol, ENEMY_GRID_X_PX);

@@ -15,24 +15,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <avr/pgmspace.h>
 
 #include "gfx.h"
 #include "eeprom.h"
 #include "battleship_utils.h"
+#include "strings.h"
 
 /* -------------------------------------------------------------------------
  *  CONSTANTS
  * ------------------------------------------------------------------------- */
 const uint8_t SHIP_LENGTHS[NUM_SHIPS] = {5, 4, 3, 3, 2};
-	
-char buffer[20];	//Holds string constants at runtime
-
-const char m1[] PROGMEM = "This is NOT This!";
-const char m2[] PROGMEM = "NOT Very Good,";
-const char m3[] PROGMEM = "You Lose!";
-const char m4[] PROGMEM = "Press 2x";
-const char m5[] PROGMEM = "To Continue!";
 
 /* -------------------------------------------------------------------------
  *  BOARD BITMAPS
@@ -81,7 +73,7 @@ float rand_float(float min, float max) {
 /**
  * Returns true randomly, `probability` (from 0.0 to 1.0) of the time, else false
  */
-float rand_true(float probability) {
+float rand_bool(float probability) {
 	return (rand_float(0.0, 1.0) <= probability);
 }
 
@@ -160,7 +152,7 @@ void draw_cursor(uint8_t row, uint8_t col, uint16_t originX) {
  */
 void header_place(void) {
 	fillRect(0, 0, 320, HEADER_HEIGHT_PX, CLR_BLACK);
-	drawString(20, 10, "Place Your Ships", CLR_WHITE, CLR_BLACK, 2, &font5x7, 0);
+	drawString_P(20, 10, PLACE_YOUR_SHIPS, CLR_WHITE, CLR_BLACK, 2, &font5x7, 0);
 }
 
 /**
@@ -168,8 +160,8 @@ void header_place(void) {
  */
 void header_play(void) {
 	fillRect(0, 0, 320, HEADER_HEIGHT_PX, CLR_BLACK);
-	drawString(20, 10, "Your Board", CLR_WHITE, CLR_BLACK, 2, &font5x7, 0);
-	drawString(ENEMY_GRID_X_PX + 10, 10, "Enemy Board", CLR_WHITE, CLR_BLACK, 2, &font5x7, 0);
+	drawString_P(20, 10, YOUR_BOARD, CLR_WHITE, CLR_BLACK, 2, &font5x7, 0);
+	drawString_P(ENEMY_GRID_X_PX + 10, 10, ENEMY_BOARD, CLR_WHITE, CLR_BLACK, 2, &font5x7, 0);
 }
 
 /**
@@ -267,8 +259,8 @@ void gui_draw_main_menu(void) {
 	fillScreen(CLR_MM_BG);
 
 	// Title
-	drawString(67, 15,  "A Rmada",  CLR_WHITE, CLR_MM_BG, 5, &font5x7, 0);
-	drawString(162,55,   "ECE:3360", CLR_WHITE, CLR_MM_BG, 2, &font5x7, 0);
+	drawString_P(67, 15, A_RMADA,  CLR_WHITE, CLR_MM_BG, 5, &font5x7, 0);
+	drawString_P(162,55, COURSE_NUM, CLR_WHITE, CLR_MM_BG, 2, &font5x7, 0);
 
 	// Buttons & gear
 	gui_draw_multiplayer_button(CLR_LIGHT_GRAY, CLR_DARK_GRAY);
@@ -286,7 +278,7 @@ void gui_draw_main_menu(void) {
  */
 void gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color) {
 	fillRectBorder(60, 95, 200, 50, 5, border_color);
-	drawString(74, 109, "Multiplayer", text_color, CLR_MM_BG, 3, &font5x7, 0);
+	drawString_P(74, 109, MULTIPLAYER, text_color, CLR_MM_BG, 3, &font5x7, 0);
 }
 
 /*
@@ -294,7 +286,7 @@ void gui_draw_multiplayer_button(uint16_t text_color, uint16_t border_color) {
  */
 void gui_draw_singleplayer_button(uint16_t text_color, uint16_t border_color) {
 	fillRectBorder(60, 168, 200, 50, 5, border_color);
-	drawString(89, 182, "Versus AI", text_color, CLR_MM_BG, 3, &font5x7, 0);
+	drawString_P(89, 182, VERSUS_AI, text_color, CLR_MM_BG, 3, &font5x7, 0);
 }
 
 /*
@@ -330,7 +322,7 @@ void gui_draw_settings_gear(uint16_t color) {
  */
 void gui_animate_title_letter_v(void) {
 	for (uint8_t i = 0; i < 255; i += 3) {
-		drawString(93, 15, "V", rgb(i, i, i), CLR_MM_BG, 5, &font5x7, 0);
+		drawString_P(93, 15, V_CHAR, rgb(i, i, i), CLR_MM_BG, 5, &font5x7, 0);
 	}
 }
 
@@ -345,7 +337,7 @@ void gui_draw_settings_screen(const bool *sounds, const AIDifficulty *difficulty
 	fillScreen(CLR_MM_BG);
 
 	// Start the title text "Settings"
-	drawString(59, 28, "Settings",   CLR_WHITE, CLR_MM_BG, 5, &font5x7, 0);
+	drawString_P(59, 28, SETTINGS,   CLR_WHITE, CLR_MM_BG, 5, &font5x7, 0);
 
 	// Draw button textures
 	gui_draw_sound_toggle_button(CLR_NONE, CLR_DARK_GRAY, sounds);
@@ -360,11 +352,11 @@ void gui_draw_settings_screen(const bool *sounds, const AIDifficulty *difficulty
 void gui_draw_sound_toggle_button(uint16_t text_color, uint16_t border_color, const bool *sound) {
 	fillRectBorder(60, 95, 200, 50, 5, border_color);
 	if (sound && *sound) {
-		if (text_color != CLR_NONE) drawString(74, 109, "Sounds: On ", text_color, CLR_MM_BG, 3, &font5x7, 0);
-		drawString(74, 109, "Sounds: On ", CLR_GREEN, CLR_MM_BG, 3, &font5x7, 0);
+		if (text_color != CLR_NONE) drawString_P(74, 109, SOUNDS_ON, text_color, CLR_MM_BG, 3, &font5x7, 0);
+		drawString_P(74, 109, SOUNDS_ON, CLR_GREEN, CLR_MM_BG, 3, &font5x7, 0);
 	} else {
-		if (text_color != CLR_NONE) drawString(74, 109, "Sounds: Off", text_color, CLR_MM_BG, 3, &font5x7, 0);
-		drawString(74, 109, "Sounds: Off", CLR_RED, CLR_MM_BG, 3, &font5x7, 0);
+		if (text_color != CLR_NONE) drawString_P(74, 109, SOUNDS_OFF, text_color, CLR_MM_BG, 3, &font5x7, 0);
+		drawString_P(74, 109, SOUNDS_OFF, CLR_RED, CLR_MM_BG, 3, &font5x7, 0);
 	}
 
 }
@@ -378,27 +370,27 @@ void gui_draw_difficulty_button(uint16_t text_color, uint16_t border_color, cons
 		switch (*difficulty) {
 			case AI_EASY:
 				if (text_color != CLR_NONE) {
-					drawString(74, 182, "AI:", text_color, CLR_MM_BG, 3, &font5x7, 0);
-					drawString(132, 185, "Lieutenant", text_color, CLR_MM_BG, 2, &font5x7, 0);
+					drawString_P(74, 182, AI, text_color, CLR_MM_BG, 3, &font5x7, 0);
+					drawString_P(132, 185, LIEUTENANT, text_color, CLR_MM_BG, 2, &font5x7, 0);
 				}
-				drawString(74, 182, "AI:", CLR_GREEN, CLR_MM_BG, 3, &font5x7, 0);
-				drawString(132, 185, "Lieutenant", CLR_GREEN, CLR_MM_BG, 2, &font5x7, 0);
+				drawString_P(74, 182, AI, CLR_GREEN, CLR_MM_BG, 3, &font5x7, 0);
+				drawString_P(132, 185, LIEUTENANT, CLR_GREEN, CLR_MM_BG, 2, &font5x7, 0);
 				break;
 			case AI_MEDIUM:
 				if (text_color != CLR_NONE) {
-					drawString(74, 182, "AI:", text_color, CLR_MM_BG, 3, &font5x7, 0);
-					drawString(132, 185, "Captain   ", text_color, CLR_MM_BG, 2, &font5x7, 0);
+					drawString_P(74, 182, AI, text_color, CLR_MM_BG, 3, &font5x7, 0);
+					drawString_P(132, 185, CAPTAIN, text_color, CLR_MM_BG, 2, &font5x7, 0);
 				}
-				drawString(74, 182, "AI:", CLR_YELLOW, CLR_MM_BG, 3, &font5x7, 0);
-				drawString(132, 185, "Captain   ", CLR_YELLOW, CLR_MM_BG, 2, &font5x7, 0);
+				drawString_P(74, 182, AI, CLR_YELLOW, CLR_MM_BG, 3, &font5x7, 0);
+				drawString_P(132, 185, CAPTAIN, CLR_YELLOW, CLR_MM_BG, 2, &font5x7, 0);
 				break;
 			case AI_HARD:
 				if (text_color != CLR_NONE) {
-					drawString(74, 182, "AI:", text_color, CLR_MM_BG, 3, &font5x7, 0);
-					drawString(132, 185, "Admiral   ", text_color, CLR_MM_BG, 2, &font5x7, 0);
+					drawString_P(74, 182, AI, text_color, CLR_MM_BG, 3, &font5x7, 0);
+					drawString_P(132, 185, ADMIRAL, text_color, CLR_MM_BG, 2, &font5x7, 0);
 				}
-				drawString(74, 182, "AI:", CLR_RED, CLR_MM_BG, 3, &font5x7, 0);
-				drawString(132, 185, "Admiral   ", CLR_RED, CLR_MM_BG, 2, &font5x7, 0);
+				drawString_P(74, 182, AI, CLR_RED, CLR_MM_BG, 3, &font5x7, 0);
+				drawString_P(132, 185, ADMIRAL, CLR_RED, CLR_MM_BG, 2, &font5x7, 0);
 				break;
 		}
 	}
@@ -487,27 +479,22 @@ void gui_draw_lose_screen() {
 	fillScreen(CLR_BLACK);
 	displayImage(140, 60, 4);
 	
-	strcpy_P(buffer, m1);
-	drawString(7, 20, buffer, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
-	strcpy_P(buffer, m2);
-	drawString(7, 50, buffer, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
-	strcpy_P(buffer, m3);
-	drawString(7, 80, buffer, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
-	strcpy_P(buffer, m4);
-	drawString(7, 150, buffer, CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
-	strcpy_P(buffer, m5);
-	drawString(7, 180, buffer, CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 20, THIS_NOT_THIS, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 50, NOT_VERY_GOOD, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 80, YOU_LOSE, CLR_RED, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 150, PRESS_2X, CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 180, TO_CONTINUE, CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
 }
 
 void gui_draw_win_screen() {
 	fillScreen(CLR_BLACK);
 	displayImage(140, 60, 4);
-	/*
-	drawString(7, 20, "This is This!", CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
-	drawString(7, 50, "Very Good,", CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
-	drawString(7, 80, "You Win!", CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
-	drawString(7, 150, "Press 2x", CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
-	drawString(7, 180, "To Continue", CLR_WHITE, CLR_BLACK, 3, &font5x7, 0); */
+	
+	drawString_P(7, 20, THIS_IS_THIS, CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 50, VERY_GOOD, CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 80, YOU_WIN, CLR_GREEN, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 150, PRESS_2X, CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
+	drawString_P(7, 180, TO_CONTINUE, CLR_WHITE, CLR_BLACK, 3, &font5x7, 0);
 }
 
 /* -------------------------------------------------------------------------

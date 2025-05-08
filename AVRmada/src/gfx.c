@@ -13,6 +13,7 @@
 
 #include "gfx.h"
 #include <stdbool.h>
+#include <avr/pgmspace.h>
 
 #ifndef F_CPU
 #define F_CPU		16000000UL
@@ -23,6 +24,9 @@
 #define MADCTL_MX	0x40  // Column Address Order
 #define MADCTL_MV	0x20  // Row/Column Exchange (X and Y swap)
 #define MADCTL_BGR	0x08  // BGR Color Order (instead of RGB)
+
+// Holds Strings from PRGMEM at Runtime
+char strbuffer[32];
 
 // ---------------------------------------------------------------------------
 // Font Data Section
@@ -936,3 +940,59 @@ void drawString(int16_t x, int16_t y, const char *s, uint16_t color, uint16_t bg
 		s++;
 	}
 }
+
+#include <avr/pgmspace.h>
+#include <string.h>
+
+void drawString_P(int16_t x, int16_t y, const char *s_progmem, uint16_t color, uint16_t bg,
+uint8_t size, const Font *font, uint8_t rotation)
+{
+	// Copy from PROGMEM to RAM buffer
+	strncpy_P(strbuffer, s_progmem, sizeof(strbuffer) - 1);
+	strbuffer[sizeof(strbuffer) - 1] = '\0';  // Null-terminate
+
+	const char *s = strbuffer;
+
+	int16_t deltaX = font->width  * size + 1;
+	int16_t deltaY = font->height * size + 1;
+	int16_t gap    = size;
+
+	int16_t stepX, stepY, nlX, nlY;
+
+	switch (rotation & 3) {
+		case 0:
+		stepX = deltaX; stepY = 0;
+		nlX = 0; nlY = deltaY + gap;
+		break;
+		case 1:
+		stepX = 0; stepY = deltaX;
+		nlX = -(deltaY + gap); nlY = 0;
+		break;
+		case 2:
+		stepX = -deltaX; stepY = 0;
+		nlX = 0; nlY = -(deltaY + gap);
+		break;
+		case 3:
+		stepX = 0; stepY = -deltaX;
+		nlX = deltaY + gap; nlY = 0;
+		break;
+	}
+
+	int16_t startX = x, startY = y;
+	int line = 0;
+	int16_t cx = startX, cy = startY;
+
+	while (*s) {
+		if (*s == '\n') {
+			line++;
+			cx = startX + nlX * line;
+			cy = startY + nlY * line;
+			} else {
+			drawChar(cx, cy, *s, color, bg, size, font, rotation);
+			cx += stepX;
+			cy += stepY;
+		}
+		s++;
+	}
+}
+

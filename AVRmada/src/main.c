@@ -1,8 +1,8 @@
 /* -------------------------------------------------------------------------
  * main.c - Two-player Battleship over UART
  *
- * v2.0 - Bitmap Board representation for SRAM Optimization
- * Copyright (c) 2025 Peter Kamp
+ * v2.0
+ * Copyright (c) 2025 Peter Kamp, Brendan Brooks
  * --------------------------------------------------------------------------- */
 
 #define F_CPU 16000000UL
@@ -29,7 +29,7 @@ AIDifficulty aiDifficulty = AI_MEDIUM;
 /* -------------------------------------------------------------------------
  *  GLOBAL GAME STATE
  * ------------------------------------------------------------------------- */
-Ship   playerFleet[NUM_SHIPS];
+Ship	playerFleet[NUM_SHIPS];
 
 uint8_t lastEnemyRow = 0;
 uint8_t lastEnemyCol = 0;
@@ -37,7 +37,7 @@ uint8_t lastEnemyCol = 0;
 uint8_t selRow, selCol;						// Current selection cursor
 uint8_t ghostShipIdx;						// Ship being placed
 bool	ghostHorizontal;					// Ship placement orientation (horizontal/vertical)
-uint8_t playerRemaining, enemyRemaining;
+uint8_t playerRemaining, enemyRemaining;	// Number of remaining ships
 
 static int8_t pendingRow = -1;				// Row of pending outgoing shot
 static int8_t pendingCol = -1;				// Col of pending outgoing shot
@@ -121,6 +121,9 @@ void handle_reset(void);
 /* -------------------------------------------------------------------------
  *  PROTOCOL TRANSMISSION HELPERS
  * ------------------------------------------------------------------------- */
+/**
+ * Transmit a READY packet.
+ */
 static inline void tx_ready(void) {
 	if (gMode == GM_SINGLEPLAYER) {
 		sp_on_tx_ready(selfToken);
@@ -129,6 +132,9 @@ static inline void tx_ready(void) {
 	}
 }
 
+/**
+ * Transmit an ATTACK on the enemy at row, col.
+ */
 static inline void tx_attack(uint8_t r, uint8_t c) {
 	if (gMode == GM_SINGLEPLAYER) {
 		sp_on_tx_attack(r, c);
@@ -137,6 +143,9 @@ static inline void tx_attack(uint8_t r, uint8_t c) {
 	}
 }
 
+/**
+ * Transmit the RESULT of an enemy attack on row, col.
+ */
 static inline void tx_result(uint8_t r, uint8_t c, bool hit) {
 	if (gMode == GM_SINGLEPLAYER) {
 		sp_on_tx_result(r, c, hit);
@@ -175,7 +184,7 @@ static void on_attack(uint8_t r, uint8_t c) {
 	bool hit = BITMAP_GET(playerOccupiedBitmap, r, c);
 
 	if (first_time) {
-		// First time being attacked here ? update grid visually
+		// First time being attacked here; update grid visually
 		draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, PLAYER_GRID_X_PX);
 
 		if (hit && --playerRemaining == 0) {
@@ -198,7 +207,7 @@ static void on_attack(uint8_t r, uint8_t c) {
 			play_enemy_attack_sound(&hit, &soundsEnabled);
 		}
 	} else {
-		// Duplicate attack (already attacked here) ? still must reply
+		// Duplicate attack (already attacked here); peer still must reply
 		tx_result(r, c, hit);
 	}
 }
@@ -210,23 +219,23 @@ static void on_result(uint8_t r, uint8_t c, bool hit) {
 	if (pendingRow < 0)
 		return; // Ignore stray result if we don't have a pending shot
 
-	// 1) If sounds enabled, play hit or miss sound depending on outcome
+	// 1 - If sounds enabled, play hit or miss sound depending on outcome
 	play_attack_sound(&hit, &soundsEnabled);
 
-	// 2) Erase pending cyan cell
+	// 2 - Erase pending cyan cell
 	draw_cell(pendingRow, pendingCol, CLR_NAVY, ENEMY_GRID_X_PX);
 	pendingRow = pendingCol = -1;
 
-	// 3) Paint final outcome
+	// 3 - Paint final outcome
 	draw_cell(r, c, hit ? CLR_HIT : CLR_MISS, ENEMY_GRID_X_PX);
 
-	// 4) Mark in our enemy bitmaps
+	// 4 - Mark in our enemy bitmaps
 	if (hit) BITMAP_SET(enemyConfirmedHitBitmap, r, c);
 
-	// 5) Redraw selection cursor
+	// 5 - Redraw selection cursor
 	draw_cursor(selRow, selCol, ENEMY_GRID_X_PX);
 
-	// 6) Check for game end or enemy turn
+	// 6 - Check for game end or enemy turn
 	if (hit && --enemyRemaining == 0) {
 		nState = NS_GAME_OVER;
 		gState = GS_OVER;
@@ -311,7 +320,7 @@ static void net_tick(void) {
 }
 
 /* -------------------------------------------------------------------------
- *  RESET PROTOCOL & DRAW INITIAL MAIN MENU SCREEN
+ *  RESET PROTOCOL & DRAW INITIAL MAIN MENU SCREEN (CALLED ON GAME RESTART)
  * ------------------------------------------------------------------------- */
 void handle_reset(void) {
 	board_reset();
@@ -464,9 +473,9 @@ static void handle_settings(void) {
 	/* --- If user presses the joystick on difficulty button, increment AI difficulty --- */
 	if (button_is_pressed() && (sState == SETTINGS_DIFFICULTY) && !buttonLatch) {
 		buttonLatch = true;
-		// advance through AI_EASY -> AI_MEDIUM -> AI_HARD -> back to AI_EASY
+		// Advance through AI_EASY -> AI_MEDIUM -> AI_HARD -> back to AI_EASY
 		aiDifficulty = (AIDifficulty)((aiDifficulty + 1) % 3);
-		// redraw the button to show the new label/color
+		// Redraw the button to show the new label/color
 		gui_draw_difficulty_button(CLR_WHITE, CLR_ORANGE, &aiDifficulty);
 	}
 
@@ -540,7 +549,7 @@ static void handle_placing(void) {
 		}
 
 		if ((systemTime - holdStart) >= 500) {
-			/* Long press ? rotate ship */
+			/* Long hold = rotate ship */
 			ghost_update(selRow, selCol, ghostHorizontal, false);
 			ghostHorizontal = !ghostHorizontal;
 
@@ -550,7 +559,7 @@ static void handle_placing(void) {
 
 			ghost_update(selRow, selCol, ghostHorizontal, true);
 		} else {
-			/* Short press ? attempt to place ship */
+			/* Short press = attempt to place ship */
 			uint8_t len = SHIP_LENGTHS[ghostShipIdx];
 			if (ship_can_fit(playerOccupiedBitmap, selRow, selCol, len, ghostHorizontal)) {
 				ghost_update(selRow, selCol, ghostHorizontal, false);
@@ -561,13 +570,13 @@ static void handle_placing(void) {
 				if (ghostShipIdx < NUM_SHIPS) {
 					uint8_t nextLen = SHIP_LENGTHS[ghostShipIdx];
 
-					/* keep the cursor inside the grid */
+					/* Keep the cursor inside the grid */
 					if (ghostHorizontal && selCol > GRID_COLS - nextLen)  selCol = GRID_COLS - nextLen;
 					if (!ghostHorizontal && selRow > GRID_ROWS - nextLen) selRow = GRID_ROWS - nextLen;
 
-					ghost_update(selRow, selCol, ghostHorizontal, true);   // will show grey or red immediately
+					ghost_update(selRow, selCol, ghostHorizontal, true);   // Will show gray or red immediately
 				} else if (ghostShipIdx == NUM_SHIPS) {
-					// All ships placed ? ready to connect
+					// All ships placed; ready to connect
 					selfToken = (uint16_t)systemTime; // Use finishing time as token
 					tx_ready();
 					nState = NS_WAIT_READY;
@@ -754,7 +763,7 @@ int main(void) {
 
 	initEepromImage();
 
-	srand16(adc_read(3) * adc_read(4));		// Initialize the RNG for `singleplayer.c` (with unused inputs)
+	srand16(adc_read(3) * adc_read(4));		// Initialize the RNG for `singleplayer.c` (with unused ADC inputs)
 
 	gState = GS_RESET;						// The initial game state is GS_RESET
 
@@ -770,7 +779,7 @@ int main(void) {
 				handle_reset();				// Reset full protocol and board state; draw the main menu screen; update gState (to GS_MAINMENU) and default gMode (to GM_MULTIPLAYER)
 				break;
 			case GS_MAINMENU:
-				handle_main_menu();			// Allow the user to select between gModes GM_MULTIPLAYER and GM_SINGLEPLAYER; goes to GS_NEWGAME
+				handle_main_menu();			// Allow the user to select between gModes GM_MULTIPLAYER and GM_SINGLEPLAYER; goes to GS_NEWGAME or GS_SETTINGS
 				break;
 			case GS_SETTINGS:
 				handle_settings();
@@ -799,7 +808,9 @@ int main(void) {
 		}
 
 		/* Flush one queued spoofed packet (single-player only) */
-		if (gMode == GM_SINGLEPLAYER) sp_tick();
+		if (gMode == GM_SINGLEPLAYER) {
+			 sp_tick();
+		}
 
 		_delay_ms(1);   // Tick every 1 ms
 		systemTime++;   // Advance system time counter

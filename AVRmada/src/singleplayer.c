@@ -22,7 +22,7 @@ static inline bool q_empty(void) { return qhead == qtail; }
 
 static void q_push(const char *s)
 {
-	if (q_full()) return;          /* drop if ever over?run – harmless here */
+	if (q_full()) return;          /* Drop if ever overrun – harmless here */
 	strncpy(qbuf[qhead], s, 31);
 	qbuf[qhead][31] = '\0';
 	qhead = (uint8_t)(qhead + 1) % QCAP;

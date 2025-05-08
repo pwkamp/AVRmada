@@ -2,7 +2,7 @@
  * battleship_utils.h
  * Helper routines for Battleship, optimized for minimal SRAM usage
  *
- * v2.0 - Bitmap Board representation for SRAM Optimization
+ * v2.0
  * Copyright (c) 2025 Peter Kamp
  * ------------------------------------------------------------------------- */
 
@@ -22,7 +22,7 @@
 #define GRID_ROWS			10
 #define GRID_COLS			10
 #define GRID_CELLS			(GRID_ROWS * GRID_COLS)
-#define BITMAP_SIZE			((GRID_CELLS + 7) / 8)   /* bytes needed to store one bit per cell */
+#define BITMAP_SIZE			((GRID_CELLS + 7) / 8)   /* Bytes needed to store one bit per cell */
 
 /* -------------------------------------------------------------------------
  *  Pixel geometry
@@ -88,8 +88,7 @@ extern const uint8_t SHIP_LENGTHS[NUM_SHIPS];
  * Bitmap board states
  *
  * Each of these arrays is BITMAP_SIZE bytes; each bit represents one cell
- * in row-major order.
- * (bit 0 = row 0,col 0; bit 1 = row 0,col 1; … bit 99 = row 9,col 9).
+ * in row-major order (bit 0 = row 0,col 0; bit 1 = row 0,col 1; ... bit 99 = row 9,col 9).
  * ------------------------------------------------------------------------- */
 extern uint8_t playerOccupiedBitmap		[BITMAP_SIZE];
 extern uint8_t playerAttackedAtBitmap	[BITMAP_SIZE];
@@ -130,10 +129,10 @@ static inline uint8_t _bit_mask(uint16_t idx) {
 
 /**
  * Test whether bit (r, c) in 'bitmap' is set.
- * 1) compute flat index = _grid_index(r,c)
- * 2) find containing byte = bitmap[_byte_index(index)]
- * 3) mask off the desired bit = _bit_mask(index)
- * 4) return true if nonzero
+ * 1 - Compute flat index = _grid_index(r,c)
+ * 2 - Find containing byte = bitmap[_byte_index(index)]
+ * 3 - Mask off the desired bit = _bit_mask(index)
+ * 4 - Return true if nonzero
  */
 #define BITMAP_GET(bitmap, r, c)					\
 	( (bitmap[_byte_index(_grid_index((r),(c)))]	\
@@ -177,10 +176,10 @@ extern Ship	playerFleet[NUM_SHIPS];
 extern uint8_t playerRemaining;
 extern uint8_t enemyRemaining;
 
-extern uint8_t selRow;			/* current cursor row */
-extern uint8_t selCol;			/* current cursor col */
-extern uint8_t ghostShipIdx;	/* index of ship being placed */
-extern bool	ghostHorizontal;	/* orientation of ship placement */
+extern uint8_t selRow;			/* Current cursor row */
+extern uint8_t selCol;			/* Current cursor col */
+extern uint8_t ghostShipIdx;	/* Index of ship being placed */
+extern bool	ghostHorizontal;	/* Orientation of ship placement */
 
 /* -------------------------------------------------------------------------
  * Function prototypes

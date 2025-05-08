@@ -7,7 +7,7 @@
  * - Drawing primitives (pixels, lines, rectangles, circles, etc.)
  * - Text rendering support with customizable fonts
  *
- * v1.2 - Initial Sound Effects
+ * v2.0
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 
@@ -241,10 +241,10 @@ Font fontLarge = { font5x7_data, 5, 7, 0x20, 96 };
  * Sets up MOSI and SCK as outputs, MISO as input.
  */
 void spi_init(void) {
-	SPI_DDR |= (1 << SPI_MOSI) | (1 << SPI_SCK); // MOSI, SCK as output
-	SPI_DDR &= ~(1 << SPI_MISO);				 // MISO as input
-	SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPR0); // SPI Enable, Master, Clock /16
-	SPSR |= (1 << SPI2X);						 // Double SPI Speed
+	SPI_DDR |= (1 << SPI_MOSI) | (1 << SPI_SCK);	// MOSI, SCK as output
+	SPI_DDR &= ~(1 << SPI_MISO);					// MISO as input
+	SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPR0);	// SPI Enable, Master, Clock /16
+	SPSR |= (1 << SPI2X);							// Double SPI Speed
 }
 
 // ---------------------------------------------------------------------------
@@ -255,8 +255,8 @@ void spi_init(void) {
  * Send a single command byte to the ILI9341 display.
  */
 void ili9341_send_command(uint8_t cmd) {
-	DC_COMMAND();   // Set D/C line low for command
-	SPI_TRANSFER(cmd); // Send command
+	DC_COMMAND();		// Set D/C line low for command
+	SPI_TRANSFER(cmd);	// Send command
 }
 
 /**
@@ -325,22 +325,22 @@ void ili9341_init(void) {
 	ili9341_send_command_bytes(0xEA, (uint8_t[]){0x00, 0x00}, 2);
 
 	// Power and VCOM Settings
-	ili9341_send_command_bytes(0xC0, (uint8_t[]){0x23}, 1);	   // Power control 1
-	ili9341_send_command_bytes(0xC1, (uint8_t[]){0x10}, 1);	   // Power control 2
-	ili9341_send_command_bytes(0xC5, (uint8_t[]){0x3E, 0x28}, 2); // VCOM control 1
-	ili9341_send_command_bytes(0xC7, (uint8_t[]){0x86}, 1);	   // VCOM control 2
+	ili9341_send_command_bytes(0xC0, (uint8_t[]){0x23}, 1);			// Power control 1
+	ili9341_send_command_bytes(0xC1, (uint8_t[]){0x10}, 1);			// Power control 2
+	ili9341_send_command_bytes(0xC5, (uint8_t[]){0x3E, 0x28}, 2);	// VCOM control 1
+	ili9341_send_command_bytes(0xC7, (uint8_t[]){0x86}, 1);			// VCOM control 2
 
 	// Memory Access Control and Pixel Format
-	ili9341_send_command_bytes(0x36, (uint8_t[]){MADCTL_MV | MADCTL_BGR}, 1); // Memory Access Control
-	ili9341_send_command_bytes(0x3A, (uint8_t[]){0x55}, 1); // Pixel format = 16-bit color
+	ili9341_send_command_bytes(0x36, (uint8_t[]){MADCTL_MV | MADCTL_BGR}, 1);	// Memory Access Control
+	ili9341_send_command_bytes(0x3A, (uint8_t[]){0x55}, 1);						// Pixel format = 16-bit color
 
 	// Frame Rate and Display Function Control
 	ili9341_send_command_bytes(0xB1, (uint8_t[]){0x00, 0x18}, 2);
 	ili9341_send_command_bytes(0xB6, (uint8_t[]){0x08, 0x82, 0x27}, 3);
 
 	// Gamma Correction
-	ili9341_send_command_bytes(0xF2, (uint8_t[]){0x00}, 1); // 3Gamma Function Disable
-	ili9341_send_command_bytes(0x26, (uint8_t[]){0x01}, 1); // Gamma curve selected
+	ili9341_send_command_bytes(0xF2, (uint8_t[]){0x00}, 1);			// 3Gamma Function Disable
+	ili9341_send_command_bytes(0x26, (uint8_t[]){0x01}, 1);			// Gamma curve selected
 	ili9341_send_command_bytes(0xE0, (uint8_t[]){
 		0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1,
 		0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00
@@ -377,7 +377,7 @@ uint16_t x1, uint16_t y1)
 	data[3] = y1 & 0xFF;
 	ili9341_send_command_bytes(0x2B, data, 4);
 
-	// prepare to write RAM
+	// Prepare to write RAM
 	ili9341_send_command(0x2C);
 }
 
@@ -762,7 +762,7 @@ void drawRoundRect(int16_t x0, int16_t y0, int16_t w, int16_t h,
 		ddF_x += 2;
 		f += ddF_x;
 
-		drawPixel(x0 + r - x, y0 + r - y, color);				   // Top-left
+		drawPixel(x0 + r - x, y0 + r - y, color);					// Top-left
 		drawPixel(x0 + r - y, y0 + r - x, color);
 		drawPixel(x0 + w - r - 1 + x, y0 + r - y, color);			// Top-right
 		drawPixel(x0 + w - r - 1 + y, y0 + r - x, color);
@@ -778,9 +778,9 @@ void drawRoundRect(int16_t x0, int16_t y0, int16_t w, int16_t h,
  */
 void fillRoundRect(int16_t x0, int16_t y0, int16_t w, int16_t h,
 				   int16_t r, uint16_t color) {
-	fillRect(x0 + r, y0, w - 2 * r, h, color);  // Center rectangle
-	fillCircleHelper(x0 + r, y0 + r, r, 1, h - 2 * r, color);		// Left corners
-	fillCircleHelper(x0 + w - r - 1, y0 + r, r, 2, h - 2 * r, color); // Right corners
+	fillRect(x0 + r, y0, w - 2 * r, h, color);							// Center rectangle
+	fillCircleHelper(x0 + r, y0 + r, r, 1, h - 2 * r, color);			// Left corners
+	fillCircleHelper(x0 + w - r - 1, y0 + r, r, 2, h - 2 * r, color);	// Right corners
 }
 
 /**
@@ -823,10 +823,10 @@ void fillCircleHelper(int16_t x0, int16_t y0, int16_t r,
  * Draw a single character at (x, y) with specified color, background, size, font, and rotation.
  *
  * Rotation options:
- *   0 = 0? normal
- *   1 = 90? clockwise
- *   2 = 180? upside down
- *   3 = 270? clockwise
+ *   0 = 0 deg; normal
+ *   1 = 90 deg; clockwise
+ *   2 = 180 deg; upside down
+ *   3 = 270 deg; clockwise
  */
 void drawChar(int16_t x, int16_t y, char c,
 			  uint16_t color, uint16_t bg,
@@ -896,9 +896,9 @@ void drawChar(int16_t x, int16_t y, char c,
 void drawString(int16_t x, int16_t y, const char *s, uint16_t color, uint16_t bg,
 				uint8_t size, const Font *font, uint8_t rotation)
 {
-	int16_t deltaX = font->width  * size + 1;  // Character width (scaled) + 1px spacing
-	int16_t deltaY = font->height * size + 1;  // Character height (scaled) + 1px spacing
-	int16_t gap	= size;					 // Extra gap between lines
+	int16_t deltaX = font->width  * size + 1;	// Character width (scaled) + 1px spacing
+	int16_t deltaY = font->height * size + 1;	// Character height (scaled) + 1px spacing
+	int16_t gap	= size;							// Extra gap between lines
 
 	// Step direction and newline jump based on rotation
 	int16_t stepX, stepY, nlX, nlY;

@@ -2,7 +2,7 @@
  * battleship_utils.c
  * Helper and hardware abstraction layer routines for Battleship
  *
- * v2.0 - Bitmap Board representation for SRAM Optimization
+ * v2.0
  * Copyright (c) 2025 Peter Kamp
  * ------------------------------------------------------------------------- */
 

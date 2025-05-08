@@ -14,7 +14,7 @@
 #define IMG_WIDTH          45
 #define IMG_HEIGHT         45
 #define IMG_PIXELS         (IMG_WIDTH * IMG_HEIGHT)
-#define IMG_BYTES          ((IMG_PIXELS + 1) >> 1)	// two pixels per byte
+#define IMG_BYTES          ((IMG_PIXELS + 1) >> 1)  // Two pixels per byte
 #define EEPROM_IMAGE_ADDR  ((uint16_t)0x0000)		// EEPROM base address
 
 /* Populate (and/or clear) the EEPROM image region.

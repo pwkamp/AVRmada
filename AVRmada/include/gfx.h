@@ -6,7 +6,7 @@
  * - Basic drawing primitives (pixel, line, rectangle, circle, etc.)
  * - Text and font rendering utilities
  *
- * v1.2 - Initial Sound Effects
+ * v2.0
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 
@@ -48,7 +48,7 @@
 #define ILI9341_RST_PIN		PB0
 
 /* ---------------------------------------------------------------------------
- * SPI Pin Definitions (ATmega328P)
+ * SPI Pin Definitions
  * --------------------------------------------------------------------------- */
 #define SPI_DDR				DDRB
 #define SPI_PORT			PORTB
@@ -88,9 +88,9 @@ do {					 \
 
 /* Font object structure for bitmap fonts */
 typedef struct {
-	const uint8_t *bitmap;	// Pointer to raw bitmap data
+	const uint8_t *bitmap;  // Pointer to raw bitmap data
 	uint8_t width;			// Character width in pixels
-	uint8_t height;			// Character height in pixels
+	uint8_t height;			 // Character height in pixels
 	char first;				// ASCII code of first character
 	uint8_t count;			// Number of characters in the font
 } Font;

@@ -182,7 +182,7 @@ void ai_attack_algorithm(int* row_to_attack, int* col_to_attack) {
 	}
 	
 	// Select a ship or ocean square based on that probability
-	if (rand_true(probability_of_hit)) {
+	if (rand_bool(probability_of_hit)) {
 		find_random_ship_square(row_to_attack, col_to_attack);		// (result returned in row_to_attack and col_to_attack)
 	} else {
 		find_random_ocean_square(row_to_attack, col_to_attack);

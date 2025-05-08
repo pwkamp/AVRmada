@@ -204,7 +204,7 @@ uint16_t	rand_int(uint16_t min, uint16_t max);
 float		rand_float(float min, float max);
 
 /* Returns true randomly, `probability` (0.0 - 1.0) of the time */
-float		rand_true(float probability);
+float		rand_bool(float probability);
 
 /* Drawing primitives */
 void	draw_cell(uint8_t row, uint8_t col, uint16_t colour, uint16_t originX);

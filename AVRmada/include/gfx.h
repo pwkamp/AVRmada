@@ -138,6 +138,8 @@ void	fillCircleHelper(int16_t x0, int16_t y0, int16_t r, uint8_t corners, int16_
 // Text rendering functions
 void	drawChar(int16_t x, int16_t y, char c, uint16_t color, uint16_t bg, uint8_t size, const Font *font, uint8_t rotation);
 void	drawString(int16_t x, int16_t y, const char *s, uint16_t color, uint16_t bg, uint8_t size, const Font *font, uint8_t rotation);
+void	drawString_P(int16_t x, int16_t y, const char *s_progmem, uint16_t color, uint16_t bg,
+						uint8_t size, const Font *font, uint8_t rotation);
 
 // Color helper
 uint16_t rgb(uint8_t r, uint8_t g, uint8_t b);

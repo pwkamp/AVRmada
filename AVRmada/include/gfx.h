@@ -6,7 +6,7 @@
  * - Basic drawing primitives (pixel, line, rectangle, circle, etc.)
  * - Text and font rendering utilities
  *
- * v1.2 - Initial Sound Effects
+ * v2.0
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 
@@ -17,10 +17,10 @@
 #define F_CPU 16000000UL
 #endif
 
-#include <stdint.h>	  // Standard integer types
-#include <avr/io.h>	  // AVR hardware IO definitions
-#include <util/delay.h>  // Delay functions
-#include <stdlib.h>	  // Standard functions (abs())
+#include <stdint.h>			// Standard integer types
+#include <avr/io.h>			// AVR hardware IO definitions
+#include <util/delay.h>		// Delay functions
+#include <stdlib.h>			// Standard functions (abs())
 
 // ---------------------------------------------------------------------------
 // Screen Resolution Constants
@@ -48,7 +48,7 @@
 #define ILI9341_RST_PIN		PB0
 
 // ---------------------------------------------------------------------------
-// SPI Pin Definitions (ATmega328P)
+// SPI Pin Definitions
 // ---------------------------------------------------------------------------
 #define SPI_DDR				DDRB
 #define SPI_PORT			PORTB
@@ -89,10 +89,10 @@ do {					 \
 // Font object structure for bitmap fonts
 typedef struct {
 	const uint8_t *bitmap;  // Pointer to raw bitmap data
-	uint8_t width;		  // Character width in pixels
-	uint8_t height;		 // Character height in pixels
-	char first;			 // ASCII code of first character
-	uint8_t count;		  // Number of characters in the font
+	uint8_t width;			// Character width in pixels
+	uint8_t height;			 // Character height in pixels
+	char first;				// ASCII code of first character
+	uint8_t count;			// Number of characters in the font
 } Font;
 
 // External font declarations

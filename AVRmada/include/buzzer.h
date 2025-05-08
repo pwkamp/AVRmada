@@ -4,7 +4,7 @@
  * Provides the ability to play predetermined sounds via a passive buzzer
  * over PWM.
  *
- * v1.2 - Initial Sound Effects
+ * v2.0
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 

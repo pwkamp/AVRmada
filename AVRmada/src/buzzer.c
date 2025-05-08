@@ -5,7 +5,7 @@
  * over PWM. Sounds are build up on Square Wave Tones or
  * Simulated Triangle/Sawtooth waves (mostly for 'noise' generation)
  *
- * v1.2 - Initial Sound Effects
+ * v2.0
  * Copyright (c) 2025 Peter Kamp
  * --------------------------------------------------------------------------- */
 #include <avr/io.h>
@@ -95,7 +95,7 @@ void play_radar_sound(const bool *hit, const bool *soundsEnabled) {
 		play_waveform((Note){f, 15, WAVEFORM_SQUARE});
 	}
 
-	_delay_ms(200); // slight pause before lock-on
+	_delay_ms(200); // Slight pause before lock-on
 	
 	if (*hit) {
 		// Lock-on: a two-tone chirp

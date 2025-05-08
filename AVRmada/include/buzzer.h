@@ -30,7 +30,7 @@ typedef struct {
 	uint8_t waveform;
 } Note;
 
-// Sound effect prototypes
+/* Sound effect prototypes */
 void play_attack_sound(const bool *hit, const bool *soundsEnabled);
 void play_win_sound(const bool *soundsEnabled);
 void play_lose_sound(const bool *soundsEnabled);

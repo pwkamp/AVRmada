@@ -1,6 +1,11 @@
-// eeprom.c
+/* ---------------------------------------------------------------------------
+ * eeprom.c - Implementation for EEPROM Image reading/writing
+ *
+ * v2.0
+ * Copyright (c) 2025 Peter Kamp and Brendan Brooks
+ * --------------------------------------------------------------------------- */
 #include "eeprom.h"
-#include "gfx.h"          // drawPixel(), fillRect(), rgb()
+#include "gfx.h"
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 

@@ -36,7 +36,7 @@
 #define STATUS_Y_PX			210
 
 /* -------------------------------------------------------------------------
- *  Color definitions (RGB565 via gfx.h)
+ *  Color definitions
  * ------------------------------------------------------------------------- */
 #define CLR_NONE			rgb(1,2,3)
 #define CLR_MM_BG			rgb(0,0,0)
@@ -59,7 +59,7 @@
 #define CLR_PENDING			rgb(255,128,0)
 
 /* -------------------------------------------------------------------------
- *  Joystick configuration
+ * Joystick configuration
  * ------------------------------------------------------------------------- */
 #define JOY_CENTER_RAW		512
 #define JOY_DEADZONE_RAW	40
@@ -68,7 +68,7 @@
 #define JOY_REPEAT_DELAY_MS 150
 
 /* -------------------------------------------------------------------------
- *  AI definitions
+ * AI definitions
  * ------------------------------------------------------------------------- */
 typedef enum {
 	AI_EASY,
@@ -79,16 +79,17 @@ typedef enum {
 extern AIDifficulty aiDifficulty;
 
 /* -------------------------------------------------------------------------
- *  Ship constants
+ * Ship constants
  * ------------------------------------------------------------------------- */
 #define NUM_SHIPS 5
 extern const uint8_t SHIP_LENGTHS[NUM_SHIPS];
 
 /* -------------------------------------------------------------------------
- *  Bitmap board states
+ * Bitmap board states
  *
- *  Each of these arrays is BITMAP_SIZE bytes; each bit represents one cell
- *  in row-major order (bit 0 = row 0,col 0; bit 1 = row 0,col 1; … bit 99 = row 9,col 9).
+ * Each of these arrays is BITMAP_SIZE bytes; each bit represents one cell
+ * in row-major order.
+ * (bit 0 = row 0,col 0; bit 1 = row 0,col 1; … bit 99 = row 9,col 9).
  * ------------------------------------------------------------------------- */
 extern uint8_t playerOccupiedBitmap		[BITMAP_SIZE];
 extern uint8_t playerAttackedAtBitmap	[BITMAP_SIZE];
@@ -96,7 +97,7 @@ extern uint8_t enemyConfirmedHitBitmap	[BITMAP_SIZE];
 extern uint8_t enemyAttackedAtBitmap	[BITMAP_SIZE];
 
 /* -------------------------------------------------------------------------
- *  Internal bit-manipulation helpers (static inline)
+ * Internal bit-manipulation helpers (static inline)
  * ------------------------------------------------------------------------- */
 
 /**
@@ -159,7 +160,7 @@ static inline uint8_t _bit_mask(uint16_t idx) {
 	&= (uint8_t)~_bit_mask(_grid_index((r),(c))) )
 
 /* -------------------------------------------------------------------------
- *  Ship description
+ * Ship description
  * ------------------------------------------------------------------------- */
 typedef struct {
 	uint8_t row;
@@ -169,7 +170,7 @@ typedef struct {
 } Ship;
 
 /* -------------------------------------------------------------------------
- *  Extern global game state
+ * Extern global game state (defined in main.c)
  * ------------------------------------------------------------------------- */
 extern Ship	playerFleet[NUM_SHIPS];
 
@@ -182,7 +183,7 @@ extern uint8_t ghostShipIdx;	/* index of ship being placed */
 extern bool	ghostHorizontal;	/* orientation of ship placement */
 
 /* -------------------------------------------------------------------------
- *  Function prototypes
+ * Function prototypes
  * ------------------------------------------------------------------------- */
 
 /* ADC (joystick) */
@@ -193,7 +194,7 @@ uint16_t	adc_read(uint8_t ch);
 void		button_init(void);
 bool		button_is_pressed(void);
 
-/* Random (16-bit LFSR) */
+/* Pseudo-random (16-bit) */
 void		srand16(uint16_t seed);
 uint16_t	rand16(void);
 
@@ -203,7 +204,7 @@ uint16_t	rand_int(uint16_t min, uint16_t max);
 /* Random float using rand16() */
 float		rand_float(float min, float max);
 
-/* Returns true randomly, `probability` (0.0 - 1.0) of the time */
+/* Returns true randomly, 'probability' (0.0 - 1.0) of the time */
 float		rand_bool(float probability);
 
 /* Drawing primitives */
@@ -218,8 +219,9 @@ void	status_msg(const char *msg);
 /* Board reset: clears both occupied and attacked bitmaps, resets counters */
 void	board_reset(void);
 
-// Can a ship of length len fit at (row,col) without overlapping?
-// occupiedBitmap = playerOccupiedBitmap or aiOccupiedBitmap.
+/* Can a ship of length len fit at (row,col) without overlapping?
+ * occupiedBitmap = playerOccupiedBitmap or aiOccupiedBitmap.
+ */
 bool	ship_can_fit(const uint8_t *occupiedBitmap, uint8_t row, uint8_t col, uint8_t len, bool horizontal);
 
 /* Ship placement helpers */

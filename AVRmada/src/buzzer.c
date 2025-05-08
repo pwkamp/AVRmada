@@ -129,13 +129,27 @@ void play_win_sound(const bool *soundsEnabled) {
 
 void play_lose_sound(const bool *soundsEnabled) {
 	if (!soundsEnabled || !*soundsEnabled) return;
-	// A minor scale, descending and slow
-	play_waveform((Note){440, 300, WAVEFORM_SQUARE}); // A4
-	play_waveform((Note){392, 300, WAVEFORM_SQUARE}); // G4
-	play_waveform((Note){349, 400, WAVEFORM_SQUARE}); // F4
-	play_waveform((Note){330, 500, WAVEFORM_SQUARE}); // E4
-	play_waveform((Note){262, 700, WAVEFORM_SQUARE}); // C4 (lowest safe note)
+	
+	play_waveform((Note){293, 150, WAVEFORM_SQUARE});
+	play_waveform((Note){430, 150, WAVEFORM_SQUARE});
+	play_waveform((Note){293, 150, WAVEFORM_SQUARE});
+
+	// Slide
+	uint16_t start_freq = 293;
+	uint16_t end_freq = 310;
+	uint16_t slide_duration = 400;
+	uint8_t step_size = 1; // 1 Hz steps for smoothness
+	uint16_t steps = (end_freq - start_freq) / step_size;
+	if (steps == 0) steps = 1;
+	uint16_t step_delay = slide_duration / steps;
+
+	for (uint16_t f = start_freq; f <= end_freq; f += step_size) {
+		play_tone(f);
+		delay_variable(step_delay);
+	}
+	stop_tone();
 }
+
 
 
 /**

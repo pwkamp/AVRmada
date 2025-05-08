@@ -1,3 +1,9 @@
+/* ---------------------------------------------------------------------------
+ * singleplayer.c - Singleplayer implementation for AVRmada
+ *
+ * v2.0
+ * Copyright (c) 2025 Peter Kamp and Brendan Brooks
+ * --------------------------------------------------------------------------- */
 #include "singleplayer.h"
 #include <string.h>
 #include <stdio.h>
